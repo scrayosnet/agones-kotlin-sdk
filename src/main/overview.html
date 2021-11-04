@@ -1,0 +1,18 @@
+<body>
+  <h1>Agones Client SDK (Java)</h1>
+  <p>
+    Das Agones Client SDK stellt die Schnittstellen für das Lifecycle-Management und die Metadaten der GameServer
+    Instanzen innerhalb von Agones zur Verfügung. Die verschiedenen Schnittstellen müssen genutzt werden, um dem
+    Controller in Agones den aktuellen Zustand der jeweiligen Instanz mitzuteilen. Jede Instanz hat einen eigenen
+    Endpunkt für die Annahme der Aufrufe (gRPC und REST), der parallel zu dem Container der Instanz innerhalb desselben
+    Pods hochgefahren wird. Das Client SDK kommuniziert mit diesem Endpunkt.
+  </p>
+  <p>
+    Die Bibliothek wird von dem jeweiligen Plattform-Plugin (JCVelocity oder JCBukkit) eingebunden und die jeweilige
+    Plattform übernimmt auch das State-Management für die zugrundeliegende Plattform. Für die Metadaten, das erweiterte
+    Lifecycle-Management und diverse Funktionen im Zusammenhang mit Spielern müssen die Unter-Plattformen ebenfalls
+    diese Schnittstelle verwenden. Das Client SDK wird immer auf die neueste Version von Agones ausgelegt und es wird
+    versucht die Schnittstelle dabei möglichst stabil zu halten. Es existieren jedoch keine Garantien zu der Stabilität
+    der Agones API, weshalb es (insbesondere bei den Alpha und Beta APIs) zu Änderungen kommen kann.
+  </p>
+</body>
