@@ -14,7 +14,7 @@ cache:
 variables:
   ORG_GRADLE_PROJECT_mavenRepositoryTokenType: 'Job-Token'
   ORG_GRADLE_PROJECT_mavenRepositoryToken: '$CI_JOB_TOKEN'
-  GRADLE_OPTS: '-Dorg.gradle.daemon=false'
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxPermSize=512m"'
 
 
 stages:
