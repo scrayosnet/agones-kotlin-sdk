@@ -1,4 +1,4 @@
-image: 'gradle:7-jdk17'
+image: 'registry.dev.scrayos.net/scrayosnet/developmentenvironments/gradle:7-jdk17'
 
 
 cache:
@@ -14,7 +14,6 @@ cache:
 variables:
   ORG_GRADLE_PROJECT_mavenRepositoryTokenType: 'Job-Token'
   ORG_GRADLE_PROJECT_mavenRepositoryToken: '$CI_JOB_TOKEN'
-  GRADLE_OPTS: '-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs="-Xmx4096m -XX:MaxPermSize=512m"'
 
 
 stages:
