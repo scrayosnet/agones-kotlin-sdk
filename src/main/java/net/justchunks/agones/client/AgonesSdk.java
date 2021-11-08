@@ -1,6 +1,7 @@
 package net.justchunks.agones.client;
 
 import agones.dev.sdk.Sdk.GameServer;
+import net.justchunks.agones.client.task.AgonesHealthTask;
 import org.intellij.lang.annotations.Pattern;
 import org.intellij.lang.annotations.Subst;
 import org.jetbrains.annotations.Contract;
@@ -68,7 +69,7 @@ public interface AgonesSdk {
 
     //<editor-fold desc="channel">
     /** Der Host, unter dem das Agones SDK aus Sicht dieser Instanz für die Kommunikation erreicht werden kann. */
-    String AGONES_SDK_HOST = "localhost";
+    String AGONES_SDK_HOST = "127.0.0.1";
     //</editor-fold>
 
     //<editor-fold desc="health">
@@ -223,7 +224,24 @@ public interface AgonesSdk {
     void watchGameServer(@NotNull Consumer<@NotNull GameServer> callback);
     //</editor-fold>
 
-    //<editor-fold desc="maturity channels">
+    //<editor-fold desc="maintenance">
+
+    /**
+     * Startet den {@link AgonesHealthTask Agones Health Task}, der periodisch {@link #health() Health-Pings} an das
+     * {@link AgonesSdk Agones SDK} sendet und diese Instanz damit valide hält. Dieser Task sollte so früh wie möglich
+     * gestartet werden und er läuft bis diese Instanz heruntergefahren wird. Das Melden der {@link #health()
+     * Health-Pings} bewirken keine Zustandsveränderung wie beispielweise {@link #ready()}. Falls mehr Kontrolle über
+     * die {@link #health() Health-Pings} gewünscht wird, können sie stattdessen auch regelmäßig manuell ausgelöst
+     * und verwaltet werden.
+     *
+     * @throws IllegalStateException Falls der Task für die regelmäßigen {@link #health() Health-Pings} innerhalb dieses
+     *                               {@link AgonesSdk Agones SDKs} bereits aktiviert wurde und daher nicht erneut
+     *                               aktiviert werden kann.
+     */
+    void startHealthTask();
+    //</editor-fold>
+
+    //<editor-fold desc="release channels">
 
     /**
      * Gibt den gekapselten {@link Alpha Alpha-Channel} des {@link AgonesSdk Agones SDKs} zurück. Durch diesen

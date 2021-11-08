@@ -1,16 +1,34 @@
 package net.justchunks.agones.client;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
 class AgonesSdkFactoryTest {
+
+    private static ScheduledExecutorService executorService;
+
+
+    @BeforeAll
+    static void setUp() {
+        executorService = Executors.newSingleThreadScheduledExecutor();
+    }
+
+    @AfterAll
+    static void tearDown() {
+        executorService.shutdown();
+    }
 
     @Test
     @DisplayName("Should get an instance")
     void shouldGetInstance() {
         // given
-        AgonesSdk sdk = AgonesSdkFactory.createNewSdk();
+        AgonesSdk sdk = AgonesSdkFactory.createNewSdk(executorService);
 
         // then
         Assertions.assertNotNull(sdk);
@@ -20,8 +38,8 @@ class AgonesSdkFactoryTest {
     @DisplayName("Should get a new instance")
     void shouldGetNewInstance() {
         // given
-        AgonesSdk sdk1 = AgonesSdkFactory.createNewSdk();
-        AgonesSdk sdk2 = AgonesSdkFactory.createNewSdk();
+        AgonesSdk sdk1 = AgonesSdkFactory.createNewSdk(executorService);
+        AgonesSdk sdk2 = AgonesSdkFactory.createNewSdk(executorService);
 
         // then
         Assertions.assertNotEquals(sdk1, sdk2);

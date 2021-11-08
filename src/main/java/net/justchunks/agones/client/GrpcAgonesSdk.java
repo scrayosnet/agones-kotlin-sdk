@@ -9,11 +9,13 @@ import agones.dev.sdk.Sdk.GameServer;
 import agones.dev.sdk.Sdk.KeyValue;
 import agones.dev.sdk.alpha.Alpha.Count;
 import agones.dev.sdk.alpha.Alpha.PlayerID;
-import com.google.protobuf.ByteString;
+import com.google.common.base.Preconditions;
 import io.grpc.Channel;
+import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import net.justchunks.agones.client.observer.CallbackStreamObserver;
 import net.justchunks.agones.client.observer.NoopStreamObserver;
+import net.justchunks.agones.client.task.AgonesHealthTask;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Range;
@@ -21,6 +23,8 @@ import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -31,17 +35,44 @@ import java.util.function.Consumer;
  * Spezifikation von Agones vollständig.
  */
 @SuppressWarnings({"ResultOfMethodCallIgnored", "FieldCanBeLocal"})
-public final class GrpcAgonesSdk implements AgonesSdk {
+public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     //<editor-fold desc="CONSTANTS">
+
+    //<editor-fold desc="port">
     /** Der Port, über den die Kommunikation dem das Agones SDK über gRPC standardmäßig stattfindet. */
+    @Range(from = 0, to = 65_535)
     private static final int DEFAULT_AGONES_SDK_PORT = 9357;
     /** Der Schlüssel der Umgebungsvariable, aus der der Port für das Agones SDK ausgelesen werden kann. */
+    @NotNull
     private static final String AGONES_SDK_PORT_ENV_KEY = "AGONES_SDK_GRPC_PORT";
+    //</editor-fold>
+
+    //<editor-fold desc="shutdown">
+    /** Die {@link java.time.Duration Dauer}, die beim Herunterfahren maximal gewartet werden soll. */
+    @NotNull
+    private static final java.time.Duration SHUTDOWN_GRACE_PERIOD = java.time.Duration.ofSeconds(5);
+    //</editor-fold>
+
     //</editor-fold>
 
 
     //<editor-fold desc="LOCAL FIELDS">
+
+    //<editor-fold desc="runtime">
+    /** . */
+    @NotNull
+    private final ScheduledExecutorService executorService;
+    /** Der {@link ManagedChannel Channel}, über den die Kommunikation mit der externen Schnittstelle abläuft. */
+    @NotNull
+    private final ManagedChannel channel;
+    //</editor-fold>
+
+
+    //<editor-fold desc="maintenance">
+    /** Ob der {@link AgonesHealthTask Agones Health Task} dieses {@link AgonesSdk SDKs} bereits gestartet wurde. */
+    private boolean healthTaskStarted;
+    //</editor-fold>
 
     //<editor-fold desc="stubs">
     /** Der asynchrone, nebenläufige Stub für die Kommunikation mit der externen Schnittstelle des Agones SDKs. */
@@ -71,9 +102,12 @@ public final class GrpcAgonesSdk implements AgonesSdk {
      * AGONES_SDK_PORT_ENV_KEY} bezogen. Dabei werden für den {@link Channel} die zugehörigen Stubs für asynchrone und
      * synchrone Kommunikation mit der Schnittstelle instantiiert. Durch die Erstellung dieser Instanz wird noch keine
      * Aktion unternommen und entsprechend auch nicht die Kommunikation mit der externen Schnittstelle aufgenommen.
+     *
+     * @param executorService Der {@link ScheduledExecutorService Executor-Service}, der für das Senden der {@link
+     *                        #health() Health-Pings} und das Ausführen der Callbacks verwendet werden soll.
      */
     @Contract(pure = true)
-    GrpcAgonesSdk() {
+    GrpcAgonesSdk(@NotNull final ScheduledExecutorService executorService) {
         // declare the dynamic port that will be retrieved
         final int port;
 
@@ -95,18 +129,23 @@ public final class GrpcAgonesSdk implements AgonesSdk {
             }
         }
 
+        // assign the externally generated and submitted executor service
+        this.executorService = executorService;
+
         // assemble the address components and create the corresponding channel
-        final Channel channel = ManagedChannelBuilder
+        this.channel = ManagedChannelBuilder
             .forAddress(AGONES_SDK_HOST, port)
+            .executor(executorService)
+            .offloadExecutor(executorService)
             .build();
 
         // create the blocking and non-blocking stubs for the communication with agones
-        stub = SDKGrpc.newStub(channel);
-        blockingStub = SDKGrpc.newBlockingStub(channel);
+        this.stub = SDKGrpc.newStub(channel);
+        this.blockingStub = SDKGrpc.newBlockingStub(channel);
 
         // create the sub-sdks for the other channels
-        alphaSdk = new GrpcAlpha(channel);
-        betaSdk = new GrpcBeta(channel);
+        this.alphaSdk = new GrpcAlpha(channel);
+        this.betaSdk = new GrpcBeta(channel);
     }
     //</editor-fold>
 
@@ -128,7 +167,9 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     @Override
     public void reserve(@Range(from = 0, to = Integer.MAX_VALUE) final long seconds) {
         stub.reserve(
-            Duration.newBuilder().setSeconds(seconds).build(),
+            Duration.newBuilder()
+                .setSeconds(seconds)
+                .build(),
             NoopStreamObserver.getInstance()
         );
     }
@@ -152,7 +193,10 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     @Override
     public void label(@NotNull final String key, @NotNull final String value) {
         stub.setLabel(
-            KeyValue.newBuilder().setKey(key).setValue(value).build(),
+            KeyValue.newBuilder()
+                .setKey(key)
+                .setValue(value)
+                .build(),
             NoopStreamObserver.getInstance()
         );
     }
@@ -160,7 +204,10 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     @Override
     public void annotation(@NotNull final String key, @NotNull final String value) {
         stub.setAnnotation(
-            KeyValue.newBuilder().setKey(key).setValue(value).build(),
+            KeyValue.newBuilder()
+                .setKey(key)
+                .setValue(value)
+                .build(),
             NoopStreamObserver.getInstance()
         );
     }
@@ -180,6 +227,22 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         );
     }
 
+    @Override
+    public void startHealthTask() {
+        Preconditions.checkState(
+            !healthTaskStarted,
+            "The health task was already started for this SDK and cannot be started again!"
+        );
+
+        healthTaskStarted = true;
+
+        executorService.schedule(
+            new AgonesHealthTask(this),
+            HEALTH_PING_INTERVAL.toMillis(),
+            TimeUnit.MILLISECONDS
+        );
+    }
+
     @NotNull
     @Override
     @Contract(pure = true)
@@ -192,6 +255,15 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     @Contract(pure = true)
     public Beta beta() {
         return betaSdk;
+    }
+    //</editor-fold>
+
+    //<editor-fold desc="internal">
+    @Override
+    public void close() throws Exception {
+        channel
+            .shutdown()
+            .awaitTermination(SHUTDOWN_GRACE_PERIOD.toMillis(), TimeUnit.MILLISECONDS);
     }
     //</editor-fold>
 
@@ -236,14 +308,18 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         @Override
         public boolean playerConnect(@NotNull final UUID playerId) {
             return blockingStub.playerConnect(
-                PlayerID.newBuilder().setPlayerID(playerId.toString()).build()
+                PlayerID.newBuilder()
+                    .setPlayerID(playerId.toString())
+                    .build()
             ).getBool();
         }
 
         @Override
         public boolean playerDisconnect(@NotNull final UUID playerId) {
             return blockingStub.playerDisconnect(
-                PlayerID.newBuilder().setPlayerID(playerId.toString()).build()
+                PlayerID.newBuilder()
+                    .setPlayerID(playerId.toString())
+                    .build()
             ).getBool();
         }
 
@@ -256,9 +332,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
                     agones.dev.sdk.alpha.Alpha.Empty.getDefaultInstance()
                 )
                 .getListList()
-                .asByteStringList()
                 .stream()
-                .map(ByteString::toStringUtf8)
                 .map(UUID::fromString)
                 .toList();
         }
@@ -267,7 +341,9 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         @Contract(pure = true)
         public boolean isPlayerConnected(@NotNull final UUID playerId) {
             return blockingStub.isPlayerConnected(
-                PlayerID.newBuilder().setPlayerID(playerId.toString()).build()
+                PlayerID.newBuilder()
+                    .setPlayerID(playerId.toString())
+                    .build()
             ).getBool();
         }
 
@@ -292,7 +368,9 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         @Override
         public void playerCapacity(@Range(from = 0, to = Long.MAX_VALUE) final long capacity) {
             stub.setPlayerCapacity(
-                Count.newBuilder().setCount(capacity).build(),
+                Count.newBuilder()
+                    .setCount(capacity)
+                    .build(),
                 NoopStreamObserver.getInstance()
             );
         }

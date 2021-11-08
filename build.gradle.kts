@@ -210,4 +210,11 @@ tasks {
         (options as StandardJavadocDocletOptions).serialWarn(true)
         (options as StandardJavadocDocletOptions).author(false)
     }
+
+    // register a new task to fetch the version for the release script
+    register("getVersion") {
+        doLast {
+            println(version)
+        }
+    }
 }
