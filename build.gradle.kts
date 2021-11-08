@@ -34,8 +34,9 @@ repositories {
 dependencies {
     // runtime resources (are present during compilation and runtime [shaded])
     implementation("com.google.protobuf:protobuf-java:3.19.1")
-    implementation("io.grpc:grpc-stub:1.41.0")
-    implementation("io.grpc:grpc-protobuf:1.41.0")
+    implementation("io.grpc:grpc-netty-shaded:1.42.0")
+    implementation("io.grpc:grpc-protobuf:1.42.0")
+    implementation("io.grpc:grpc-stub:1.42.0")
 
     // classpaths we only compile against (are provided or unnecessary in runtime)
     compileOnly("org.apache.logging.log4j:log4j-api:2.14.1")
@@ -146,9 +147,16 @@ tasks {
         options.encoding = "UTF-8"
     }
 
+    // don't run checkstyle for test classes
+    checkstyleTest {
+        enabled = false
+    }
+
     shadowJar {
-        archiveClassifier.set("")
+        // merge all service files, so that they can be easily evaluated in the library
         mergeServiceFiles()
+
+        // minimize the output afterwards as we have proper api/implementation separation
         minimize()
     }
 

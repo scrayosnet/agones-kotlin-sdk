@@ -12,8 +12,8 @@ import agones.dev.sdk.alpha.Alpha.PlayerID;
 import com.google.protobuf.ByteString;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
-import net.justchunks.agones.client.observer.CallbackStreamOberserver;
-import net.justchunks.agones.client.observer.NoopStreamOberserver;
+import net.justchunks.agones.client.observer.CallbackStreamObserver;
+import net.justchunks.agones.client.observer.NoopStreamObserver;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Range;
@@ -26,7 +26,9 @@ import java.util.function.Consumer;
 /**
  * Eine {@link GrpcAgonesSdk} stellt eine gRPC-Implementation des {@link AgonesSdk Agones SDKs} dar. Die Implementation
  * basiert auf den offiziellen Protobufs die mit Agones veröffentlicht werden. Jede Plattform benötigt nur genau eine
- * Implementation des Agones SDKs
+ * Implementation des Agones SDKs, muss sich jedoch nicht selbst um die Auswahl der jeweils besten Implementation
+ * kümmern. Stattdessen wird die Implementation durch die Fabrikmethode vorgegeben. Alle Implementationen erfüllen die
+ * Spezifikation von Agones vollständig.
  */
 @SuppressWarnings({"ResultOfMethodCallIgnored", "FieldCanBeLocal"})
 public final class GrpcAgonesSdk implements AgonesSdk {
@@ -71,7 +73,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
      * Aktion unternommen und entsprechend auch nicht die Kommunikation mit der externen Schnittstelle aufgenommen.
      */
     @Contract(pure = true)
-    public GrpcAgonesSdk() {
+    GrpcAgonesSdk() {
         // declare the dynamic port that will be retrieved
         final int port;
 
@@ -114,20 +116,20 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     public void ready() {
         stub.ready(
             Empty.getDefaultInstance(),
-            NoopStreamOberserver.getInstance()
+            NoopStreamObserver.getInstance()
         );
     }
 
     @Override
     public void health() {
-        stub.health(NoopStreamOberserver.getInstance());
+        stub.health(NoopStreamObserver.getInstance());
     }
 
     @Override
     public void reserve(@Range(from = 0, to = Integer.MAX_VALUE) final long seconds) {
         stub.reserve(
             Duration.newBuilder().setSeconds(seconds).build(),
-            NoopStreamOberserver.getInstance()
+            NoopStreamObserver.getInstance()
         );
     }
 
@@ -135,7 +137,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     public void allocate() {
         stub.allocate(
             Empty.getDefaultInstance(),
-            NoopStreamOberserver.getInstance()
+            NoopStreamObserver.getInstance()
         );
     }
 
@@ -143,7 +145,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     public void shutdown() {
         stub.shutdown(
             Empty.getDefaultInstance(),
-            NoopStreamOberserver.getInstance()
+            NoopStreamObserver.getInstance()
         );
     }
 
@@ -151,7 +153,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     public void label(@NotNull final String key, @NotNull final String value) {
         stub.setLabel(
             KeyValue.newBuilder().setKey(key).setValue(value).build(),
-            NoopStreamOberserver.getInstance()
+            NoopStreamObserver.getInstance()
         );
     }
 
@@ -159,7 +161,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     public void annotation(@NotNull final String key, @NotNull final String value) {
         stub.setAnnotation(
             KeyValue.newBuilder().setKey(key).setValue(value).build(),
-            NoopStreamOberserver.getInstance()
+            NoopStreamObserver.getInstance()
         );
     }
 
@@ -174,7 +176,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     public void watchGameServer(@NotNull final Consumer<@NotNull GameServer> callback) {
         stub.watchGameServer(
             Empty.getDefaultInstance(),
-            CallbackStreamOberserver.getInstance(callback)
+            CallbackStreamObserver.getInstance(callback)
         );
     }
 
@@ -291,7 +293,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         public void playerCapacity(@Range(from = 0, to = Long.MAX_VALUE) final long capacity) {
             stub.setPlayerCapacity(
                 Count.newBuilder().setCount(capacity).build(),
-                NoopStreamOberserver.getInstance()
+                NoopStreamObserver.getInstance()
             );
         }
         //</editor-fold>

@@ -1,0 +1,29 @@
+package net.justchunks.agones.client;
+
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+class AgonesSdkFactoryTest {
+
+    @Test
+    @DisplayName("Should get an instance")
+    void shouldGetInstance() {
+        // given
+        AgonesSdk sdk = AgonesSdkFactory.createNewSdk();
+
+        // then
+        Assertions.assertNotNull(sdk);
+    }
+
+    @Test
+    @DisplayName("Should get a new instance")
+    void shouldGetNewInstance() {
+        // given
+        AgonesSdk sdk1 = AgonesSdkFactory.createNewSdk();
+        AgonesSdk sdk2 = AgonesSdkFactory.createNewSdk();
+
+        // then
+        Assertions.assertNotEquals(sdk1, sdk2);
+    }
+}

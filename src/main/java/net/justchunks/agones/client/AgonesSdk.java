@@ -62,7 +62,7 @@ import java.util.function.Consumer;
  *
  * @see <a href="https://agones.dev/site/docs/guides/client-sdks/">Agones Client SDK Dokumentation</a>
  */
-public sealed interface AgonesSdk permits GrpcAgonesSdk {
+public interface AgonesSdk {
 
     //<editor-fold desc="CONSTANTS">
 
