@@ -60,7 +60,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
     //<editor-fold desc="LOCAL FIELDS">
 
     //<editor-fold desc="runtime">
-    /** . */
+    /** Der {@link ScheduledExecutorService Executor-Service}, der für Callbacks und den Health-Task verwendet wird. */
     @NotNull
     private final ScheduledExecutorService executorService;
     /** Der {@link ManagedChannel Channel}, über den die Kommunikation mit der externen Schnittstelle abläuft. */
@@ -236,8 +236,9 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
         healthTaskStarted = true;
 
-        executorService.schedule(
+        executorService.scheduleAtFixedRate(
             new AgonesHealthTask(this),
+            0,
             HEALTH_PING_INTERVAL.toMillis(),
             TimeUnit.MILLISECONDS
         );

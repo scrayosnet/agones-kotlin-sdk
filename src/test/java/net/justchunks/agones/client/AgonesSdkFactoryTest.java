@@ -15,14 +15,15 @@ class AgonesSdkFactoryTest {
 
 
     @BeforeAll
-    static void setUp() {
+    static void before() {
         executorService = Executors.newSingleThreadScheduledExecutor();
     }
 
     @AfterAll
-    static void tearDown() {
+    static void after() {
         executorService.shutdown();
     }
+
 
     @Test
     @DisplayName("Should get an instance")
