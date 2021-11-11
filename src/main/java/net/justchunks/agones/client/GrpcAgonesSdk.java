@@ -16,6 +16,8 @@ import io.grpc.ManagedChannelBuilder;
 import net.justchunks.agones.client.observer.CallbackStreamObserver;
 import net.justchunks.agones.client.observer.NoopStreamObserver;
 import net.justchunks.agones.client.task.AgonesHealthTask;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Range;
@@ -36,6 +38,13 @@ import java.util.function.Consumer;
  */
 @SuppressWarnings({"ResultOfMethodCallIgnored", "FieldCanBeLocal"})
 public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
+
+    //<editor-fold desc="LOGGER">
+    /** Der Logger, der für das Senden der Fehlermeldungen  in dieser Klasse verwendet werden soll. */
+    @NotNull
+    private static final Logger LOG = LogManager.getLogger(GrpcAgonesSdk.class);
+    //</editor-fold>
+
 
     //<editor-fold desc="CONSTANTS">
 
@@ -261,10 +270,19 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     //<editor-fold desc="internal">
     @Override
-    public void close() throws Exception {
-        channel
-            .shutdown()
-            .awaitTermination(SHUTDOWN_GRACE_PERIOD.toMillis(), TimeUnit.MILLISECONDS);
+    public void close() {
+        try {
+            // shutdown and wait for it to complete
+            channel
+                .shutdown()
+                .awaitTermination(SHUTDOWN_GRACE_PERIOD.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (final InterruptedException ex) {
+            // log so we know the origin/reason for this interruption
+            LOG.debug("Thread was interrupted while waiting for the shutdown of a GrpcAgonesSdk.", ex);
+
+            // set interrupted status of this thread
+            Thread.currentThread().interrupt();
+        }
     }
     //</editor-fold>
 

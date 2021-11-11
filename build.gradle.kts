@@ -23,9 +23,6 @@ plugins {
 
 // configure the repositories for the dependencies
 repositories {
-    // local cached repository
-    mavenLocal()
-
     // official maven repository
     mavenCentral()
 }
@@ -44,8 +41,7 @@ dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // testing resources (are present during compilation and runtime [shaded])
-    testImplementation(platform("org.junit:junit-bom:5.8.1"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
     testImplementation("org.mockito:mockito-junit-jupiter:4.0.0")
     testImplementation("org.testcontainers:testcontainers:1.16.2")
     testImplementation("org.testcontainers:junit-jupiter:1.16.2")

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
@@ -117,7 +118,8 @@ class GrpcAgonesSdkTest {
         Assertions.assertNotNull(betaSdk);
     }
 
-    static class AlphaTest {
+    @Nested
+    class AlphaTest {
 
         @Test
         void playerConnect() {
@@ -148,7 +150,8 @@ class GrpcAgonesSdkTest {
         }
     }
 
-    static class BetaTest {
+    @Nested
+    class BetaTest {
 
     }
 }
