@@ -1,10 +1,15 @@
 image: 'registry.dev.scrayos.net/scrayosnet/developmentenvironments/gradle:7-jdk17'
 
 
+before_script:
+- 'export GRADLE_USER_HOME=cache/.gradle'
+
+
 cache:
 - key: '$CI_PIPELINE_ID'
   paths:
   - 'build/'
+  - '$GRADLE_USER_HOME/caches'
 - key: '$CI_COMMIT_REF_SLUG'
   paths:
   - 'build-cache/'

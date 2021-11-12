@@ -69,6 +69,8 @@ public interface AgonesSdk {
 
     //<editor-fold desc="channel">
     /** Der Host, unter dem das Agones SDK aus Sicht dieser Instanz für die Kommunikation erreicht werden kann. */
+    @NonNls
+    @NotNull
     String AGONES_SDK_HOST = "127.0.0.1";
     //</editor-fold>
 
@@ -121,6 +123,9 @@ public interface AgonesSdk {
      * @param seconds Die Dauer in Sekunden, für die diese Instanz in den Zustand {@code Reserved} versetzt werden soll,
      *                bevor sie zu {@code Ready} zurückfällt. Der Wert {@code 0} steht für eine unbegrenzte Dauer.
      *
+     * @throws IllegalArgumentException Falls die übergebenen Sekunden kleiner als {@code 0} und damit negativ sind, da
+     *                                  hierdurch die Zeit vorgegeben wird, nach der der Status wieder auf den vorigen
+     *                                  Zustand zurückgesetzt wird.
      * @apiNote Diese Methode kann zum Beispiel verwendet werden, um die Registrierung in einem externen System wie
      *     einem Matchmaker zu ermöglichen, der voraussetzt, dass die Instanzen sich für eine bestimmte Zeit für
      *     Spiel-Sessionen als bereit markieren. Sobald die Spiel-Session gestartet hat, würde die Implementation dann
@@ -164,10 +169,13 @@ public interface AgonesSdk {
      * @param key   Der Schlüssel des Labels, das dieser Instanz neu zugewiesen werden soll.
      * @param value Der Wert des Labels, das dieser Instanz neu zugewiesen werden soll.
      *
+     * @throws IllegalArgumentException Falls der Schlüssel nicht dem vorgegebenen Muster für Label-Namen entspricht und
+     *                                  daher nicht für die GameServer-Ressource innerhalb von Kubernetes übernommen
+     *                                  werden kann.
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#setlabelkey-value">Agones Dokumentation</a>
      */
     void label(
-        @NotNull @NonNls @Subst("key") @Pattern("[a-z0-9A-Z]([a-z0-9A-Z_.-]*[a-z0-9A-Z])*") String key,
+        @NotNull @NonNls @Subst("key") @Pattern("[a-z0-9A-Z]([a-z0-9A-Z_.-])*[a-z0-9A-Z]") String key,
         @NotNull String value
     );
 
@@ -180,10 +188,13 @@ public interface AgonesSdk {
      * @param key   Der Schlüssel der Annotation, die dieser Instanz neu zugewiesen werden soll.
      * @param value Der Wert der Annotation, die dieser Instanz neu zugewiesen werden soll.
      *
+     * @throws IllegalArgumentException Falls der Schlüssel nicht dem vorgegebenen Muster für Annotation-Namen
+     *                                  entspricht und daher nicht für die GameServer-Ressource innerhalb von Kubernetes
+     *                                  übernommen werden kann.
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#setannotationkey-value">Agones Dokumentation</a>
      */
     void annotation(
-        @NotNull @NonNls @Subst("key") @Pattern("[a-z0-9A-Z]([a-z0-9A-Z_.-]*[a-z0-9A-Z])*") String key,
+        @NotNull @NonNls @Subst("key") @Pattern("[a-z0-9A-Z]([a-z0-9A-Z_.-])*[a-z0-9A-Z]") String key,
         @NotNull String value
     );
     //</editor-fold>
@@ -218,6 +229,9 @@ public interface AgonesSdk {
      * @param callback Der {@link Consumer Callback}, der die fortlaufenden Änderungen an der Ressource innerhalb von
      *                 Kubernetes verarbeitet.
      *
+     * @throws NullPointerException Falls für den {@link Consumer Callback} {@code null} übergeben wird. Da die ganze
+     *                              Funktionsweise dieser Methode auf dem Callback basiert, ist ein Aufruf ohne Callback
+     *                              nicht im Sinne dieser Methode.
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#watchgameserverfunctiongameserver">Agones
      *     Dokumentation</a>
      */
@@ -231,8 +245,8 @@ public interface AgonesSdk {
      * {@link AgonesSdk Agones SDK} sendet und diese Instanz damit valide hält. Dieser Task sollte so früh wie möglich
      * gestartet werden und er läuft bis diese Instanz heruntergefahren wird. Das Melden der {@link #health()
      * Health-Pings} bewirken keine Zustandsveränderung wie beispielweise {@link #ready()}. Falls mehr Kontrolle über
-     * die {@link #health() Health-Pings} gewünscht wird, können sie stattdessen auch regelmäßig manuell ausgelöst
-     * und verwaltet werden.
+     * die {@link #health() Health-Pings} gewünscht wird, können sie stattdessen auch regelmäßig manuell ausgelöst und
+     * verwaltet werden.
      *
      * @throws IllegalStateException Falls der Task für die regelmäßigen {@link #health() Health-Pings} innerhalb dieses
      *                               {@link AgonesSdk Agones SDKs} bereits aktiviert wurde und daher nicht erneut
@@ -299,6 +313,8 @@ public interface AgonesSdk {
          *     hinzugefügt werden konnte und so von nun an in der {@link #connectedPlayers() Spielerliste} und {@link
          *     #playerCount() Spielerzahl} berücksichtigt wird.
          *
+         * @throws NullPointerException  Falls für die {@link UUID einzigartige ID} {@code null} übergeben wird und
+         *                               entsprechend kein Spieler davon abgeleitet werden kann.
          * @throws IllegalStateException Falls die {@link #playerCapacity() Spieler-Kapazität} dieser Instanz bereits
          *                               erreicht wurde und der Spieler daher nicht hinzugefügt werden kann, bis andere
          *                               Spieler die Instanz verlassen oder die Kapazität erhöht wird.
@@ -321,6 +337,8 @@ public interface AgonesSdk {
          *     konnte und so von nun an nicht mehr in der {@link #connectedPlayers() Spielerliste} und {@link
          *     #playerCount() Spielerzahl} berücksichtigt wird.
          *
+         * @throws NullPointerException Falls für die {@link UUID einzigartige ID} {@code null} übergeben wird und
+         *                              entsprechend kein Spieler davon abgeleitet werden kann.
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphaplayerdisconnectplayerid">Agones
          *     Dokumentation</a>
          */
@@ -357,6 +375,8 @@ public interface AgonesSdk {
          *
          * @return Ob der übergebene Spieler sich aktuell in der Spielerliste dieser Instanz befindet.
          *
+         * @throws NullPointerException Falls für die {@link UUID einzigartige ID} {@code null} übergeben wird und
+         *                              entsprechend kein Spieler davon abgeleitet werden kann.
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphaisplayerconnectedplayerid">Agones
          *     Dokumentation</a>
          */
@@ -405,6 +425,7 @@ public interface AgonesSdk {
          * @param capacity Die neue Kapazität, die für die gleichzeitigen Spieler auf dieser Instanz gelten soll. Der
          *                 Wert {@code 0} hebt die Beschränkung vollständig auf und steht für unbegrenzt viele Spieler.
          *
+         * @throws IllegalArgumentException Falls für die Spieler-Kapazität eine negative Zahl angegeben wird.
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphasetplayercapacitycount">Agones
          *     Dokumentation</a>
          */

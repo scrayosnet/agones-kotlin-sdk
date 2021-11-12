@@ -28,6 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 /**
  * Eine {@link GrpcAgonesSdk} stellt eine gRPC-Implementation des {@link AgonesSdk Agones SDKs} dar. Die Implementation
@@ -36,7 +37,7 @@ import java.util.function.Consumer;
  * kümmern. Stattdessen wird die Implementation durch die Fabrikmethode vorgegeben. Alle Implementationen erfüllen die
  * Spezifikation von Agones vollständig.
  */
-@SuppressWarnings({"ResultOfMethodCallIgnored", "FieldCanBeLocal"})
+@SuppressWarnings({"ResultOfMethodCallIgnored", "FieldCanBeLocal", "ConstantConditions", "java:S1192"})
 public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     //<editor-fold desc="LOGGER">
@@ -61,6 +62,12 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
     /** Die {@link java.time.Duration Dauer}, die beim Herunterfahren maximal gewartet werden soll. */
     @NotNull
     private static final java.time.Duration SHUTDOWN_GRACE_PERIOD = java.time.Duration.ofSeconds(5);
+    //</editor-fold>
+
+    //<editor-fold desc="validation">
+    /** Das {@link Pattern Muster}, dem die Schlüssel für Labels und Annotationen genügen müssen. */
+    @NotNull
+    private static final Pattern META_KEY_PATTERN = Pattern.compile("[a-z0-9A-Z]([a-z0-9A-Z_.-])*[a-z0-9A-Z]");
     //</editor-fold>
 
     //</editor-fold>
@@ -117,35 +124,40 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
      */
     @Contract(pure = true)
     GrpcAgonesSdk(@NotNull final ScheduledExecutorService executorService) {
-        // declare the dynamic port that will be retrieved
-        final int port;
+        // redirect to the other constructor with automatic port resolution
+        this(executorService, AGONES_SDK_HOST, getAutomaticPort());
+    }
 
-        // read the environment variable for the dynamic agones port
-        final String textPort = System.getenv(AGONES_SDK_PORT_ENV_KEY);
-
-        // check that there was any value and that it is valid
-        if (textPort == null) {
-            // fall back to the default port as it could not be found
-            port = DEFAULT_AGONES_SDK_PORT;
-        } else {
-            // parse the number from the textual environment variable value
-            try {
-                port = Integer.parseInt(textPort);
-            } catch (final NumberFormatException ex) {
-                throw new IllegalArgumentException(
-                    "The supplied environment variable for the port did not contain a valid number."
-                );
-            }
-        }
-
+    /**
+     * Erstellt eine neue Instanz der gRPC-Implementation des Agones SDKs. Dafür wird der entsprechende {@link Channel
+     * Netzwerk-Channel} mit expliziten Werten zusammengebaut. Der Host und der Port werden direkt übergeben und
+     * unverändert für die Erstellung des {@link Channel Channels} genutzt. Dabei werden für den {@link Channel} die
+     * zugehörigen Stubs für asynchrone und synchrone Kommunikation mit der Schnittstelle instantiiert. Durch die
+     * Erstellung dieser Instanz wird noch keine Aktion unternommen und entsprechend auch nicht die Kommunikation mit
+     * der externen Schnittstelle aufgenommen.
+     *
+     * @param executorService Der {@link ScheduledExecutorService Executor-Service}, der für das Senden der {@link
+     *                        #health() Health-Pings} und das Ausführen der Callbacks verwendet werden soll.
+     * @param host            Der Host, unter dem der gRPC Server erreichbar ist und zu dem die Verbindung entsprechend
+     *                        aufgenommen werden soll.
+     * @param port            Der Port, unter dem der gRPC Server erreichbar ist und zu dem die Verbindung entsprechend
+     *                        aufgenommen werden soll.
+     */
+    @Contract(pure = true)
+    GrpcAgonesSdk(
+        @NotNull final ScheduledExecutorService executorService,
+        @NotNull final String host,
+        @Range(from = 0, to = 65_535) final int port
+    ) {
         // assign the externally generated and submitted executor service
         this.executorService = executorService;
 
-        // assemble the address components and create the corresponding channel
+        // assemble the address components and create the corresponding channel (sdk communication does not use TLS)
         this.channel = ManagedChannelBuilder
-            .forAddress(AGONES_SDK_HOST, port)
+            .forAddress(host, port)
             .executor(executorService)
             .offloadExecutor(executorService)
+            .usePlaintext()
             .build();
 
         // create the blocking and non-blocking stubs for the communication with agones
@@ -175,6 +187,12 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void reserve(@Range(from = 0, to = Integer.MAX_VALUE) final long seconds) {
+        Preconditions.checkArgument(
+            seconds >= 0,
+            "The supplied seconds \"%s\" are not positive!",
+            seconds
+        );
+
         stub.reserve(
             Duration.newBuilder()
                 .setSeconds(seconds)
@@ -201,6 +219,12 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void label(@NotNull final String key, @NotNull final String value) {
+        Preconditions.checkArgument(
+            META_KEY_PATTERN.matcher(value).matches(),
+            "The supplied key \"%s\" does not match the pattern for label keys.",
+            value
+        );
+
         stub.setLabel(
             KeyValue.newBuilder()
                 .setKey(key)
@@ -212,6 +236,12 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void annotation(@NotNull final String key, @NotNull final String value) {
+        Preconditions.checkArgument(
+            META_KEY_PATTERN.matcher(value).matches(),
+            "The supplied key \"%s\" does not match the pattern for annotation keys.",
+            value
+        );
+
         stub.setAnnotation(
             KeyValue.newBuilder()
                 .setKey(key)
@@ -230,6 +260,11 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void watchGameServer(@NotNull final Consumer<@NotNull GameServer> callback) {
+        Preconditions.checkNotNull(
+            callback,
+            "The supplied callback cannot be null!"
+        );
+
         stub.watchGameServer(
             Empty.getDefaultInstance(),
             CallbackStreamObserver.getInstance(callback)
@@ -286,6 +321,39 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
     }
     //</editor-fold>
 
+    //<editor-fold desc="utility: port resolution">
+    /**
+     * Ermittelt automatisch den Port für die Verbindung zum gRPC-Server der externen Schnittstelle des {@link AgonesSdk
+     * Agones SDKs}. Dabei wird zunächst versucht den Port über die Umgebungsvariable {@value AGONES_SDK_PORT_ENV_KEY}
+     * aufzulösen. Ist diese Variable nicht gesetzt, wird zum Standard-Port für die gRPC-Schnittstelle in Agones
+     * ({@value DEFAULT_AGONES_SDK_PORT}) zurückgefallen.
+     *
+     * @return Der automatisch ermittelte Port für die Verbindung zum gRPC-Server der externen Schnittstelle des {@link
+     *     AgonesSdk Agones SDKs}.
+     */
+    @Contract(pure = true)
+    @Range(from = 0, to = 65_535)
+    private static int getAutomaticPort() {
+        // read the environment variable for the dynamic agones port
+        final String textPort = System.getenv(AGONES_SDK_PORT_ENV_KEY);
+
+        // check that there was any value and that it is valid
+        if (textPort == null) {
+            // fall back to the default port as it could not be found
+            return DEFAULT_AGONES_SDK_PORT;
+        } else {
+            // parse the number from the textual environment variable value
+            try {
+                return Integer.parseInt(textPort);
+            } catch (final NumberFormatException ex) {
+                throw new IllegalArgumentException(
+                    "The supplied environment variable for the port did not contain a valid number."
+                );
+            }
+        }
+    }
+    //</editor-fold>
+
 
     /**
      * Die {@link GrpcAlpha GrpcAlpha-Klasse} beschreibt die gRPC-Implementation des {@link Alpha Alpha-Channels} des
@@ -326,6 +394,11 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
         //<editor-fold desc="implementation">
         @Override
         public boolean playerConnect(@NotNull final UUID playerId) {
+            Preconditions.checkNotNull(
+                playerId,
+                "The supplied player ID cannot be null!"
+            );
+
             return blockingStub.playerConnect(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId.toString())
@@ -335,6 +408,11 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
         @Override
         public boolean playerDisconnect(@NotNull final UUID playerId) {
+            Preconditions.checkNotNull(
+                playerId,
+                "The supplied player ID cannot be null!"
+            );
+
             return blockingStub.playerDisconnect(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId.toString())
@@ -359,6 +437,11 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
         @Override
         @Contract(pure = true)
         public boolean isPlayerConnected(@NotNull final UUID playerId) {
+            Preconditions.checkNotNull(
+                playerId,
+                "The supplied player ID cannot be null!"
+            );
+
             return blockingStub.isPlayerConnected(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId.toString())
@@ -386,6 +469,12 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
         @Override
         public void playerCapacity(@Range(from = 0, to = Long.MAX_VALUE) final long capacity) {
+            Preconditions.checkArgument(
+                capacity >= 0,
+                "The supplied capacity \"%s\" is not positive!",
+                capacity
+            );
+
             stub.setPlayerCapacity(
                 Count.newBuilder()
                     .setCount(capacity)
