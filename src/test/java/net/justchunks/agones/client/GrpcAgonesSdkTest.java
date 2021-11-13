@@ -370,6 +370,16 @@ class GrpcAgonesSdkTest {
     }
 
     @Test
+    @DisplayName("Health task should trigger health pings")
+    void shouldThrowOnDuplicateStartHealthTask() {
+        // when
+        sdk.startHealthTask();
+
+        // then
+        Assertions.assertThrows(IllegalStateException.class, () -> sdk.startHealthTask());
+    }
+
+    @Test
     @DisplayName("Close should be idempotent")
     void closeShouldBeIdempotent() {
         // when
