@@ -13,6 +13,8 @@ import com.google.common.base.Preconditions;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import net.justchunks.agones.client.observer.CallbackStreamObserver;
 import net.justchunks.agones.client.observer.NoopStreamObserver;
@@ -304,7 +306,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
         // register the task to periodically send pings
         executorService.scheduleAtFixedRate(
             () -> healthTaskStream.onNext(Empty.getDefaultInstance()),
-            0,
+            0L,
             HEALTH_PING_INTERVAL.toMillis(),
             TimeUnit.MILLISECONDS
         );
@@ -428,12 +430,25 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
                 "The supplied player ID cannot be null!"
             );
 
-            // call the endpoint with the player ID and return the response
-            return blockingStub.playerConnect(
-                PlayerID.newBuilder()
-                    .setPlayerID(playerId.toString())
-                    .build()
-            ).getBool();
+            // wrap in try-catch because capacity-overflow throws exception
+            try {
+                return blockingStub.playerConnect(
+                    PlayerID.newBuilder()
+                        .setPlayerID(playerId.toString())
+                        .build()
+                ).getBool();
+            } catch (final StatusRuntimeException ex) {
+                // get the status for this exception
+                final Status state = ex.getStatus();
+
+                // if the player limit is exhausted, convert the exception
+                if (state.getCode().value() == 2 && state.getDescription().equals("Players are already at capacity")) {
+                    throw new IllegalStateException("Player capacity is exhausted!");
+                }
+
+                // in any other case, rethrow the original exception
+                throw ex;
+            }
         }
 
         @Override

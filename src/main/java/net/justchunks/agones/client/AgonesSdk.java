@@ -405,7 +405,7 @@ public interface AgonesSdk {
          * Ressource aktualisiert wurde.
          *
          * @return Die aktuelle Kapazität, die für die gleichzeitigen Spieler auf dieser Instanz gilt. Der Wert {@code
-         *     0} steht für unbegrenzt viele Spieler.
+         *     0} steht dafür, dass kein einziger Spieler die Instanz betreten kann.
          *
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphagetplayercapacity">Agones
          *     Dokumentation</a>
@@ -421,7 +421,7 @@ public interface AgonesSdk {
          * nicht von der Instanz entfernt.
          *
          * @param capacity Die neue Kapazität, die für die gleichzeitigen Spieler auf dieser Instanz gelten soll. Der
-         *                 Wert {@code 0} hebt die Beschränkung vollständig auf und steht für unbegrenzt viele Spieler.
+         *                 Wert {@code 0} steht dafür, dass kein einziger Spieler die Instanz betreten kann.
          *
          * @throws IllegalArgumentException Falls für die Spieler-Kapazität eine negative Zahl angegeben wird.
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphasetplayercapacitycount">Agones
