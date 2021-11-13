@@ -5,7 +5,6 @@ cache:
 - key: '$CI_PIPELINE_ID'
   paths:
   - 'build/'
-  - '$GRADLE_USER_HOME/caches'
 - key: '$CI_COMMIT_REF_SLUG'
   paths:
   - 'build-cache/'
