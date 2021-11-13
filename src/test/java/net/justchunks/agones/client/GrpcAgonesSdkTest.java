@@ -315,7 +315,7 @@ class GrpcAgonesSdkTest {
         sdk.label(labelKey, labelValue);
 
         // then
-        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(1)).accept(captor.capture());
+        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS)).accept(captor.capture());
         Map<String, String> labelMap = captor.getValue().getObjectMeta().getLabelsMap();
         Assertions.assertTrue(labelMap.containsKey(META_PREFIX + labelKey));
         Assertions.assertTrue(labelMap.containsValue(labelValue));
