@@ -1,5 +1,0 @@
-/**
- * Enthält alle Tasks, die für die Interaktion mit Agones und die erfolgreiche Integration in das Cluster erforderlich
- * sind.
- */
-package net.justchunks.agones.client.task;

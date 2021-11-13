@@ -13,9 +13,9 @@ import com.google.common.base.Preconditions;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 import net.justchunks.agones.client.observer.CallbackStreamObserver;
 import net.justchunks.agones.client.observer.NoopStreamObserver;
-import net.justchunks.agones.client.task.AgonesHealthTask;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Contract;
@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
  * kümmern. Stattdessen wird die Implementation durch die Fabrikmethode vorgegeben. Alle Implementationen erfüllen die
  * Spezifikation von Agones vollständig.
  */
-@SuppressWarnings({"ResultOfMethodCallIgnored", "FieldCanBeLocal", "ConstantConditions", "java:S1192"})
+@SuppressWarnings({"FieldCanBeLocal", "ConstantConditions", "java:S1192"})
 public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     //<editor-fold desc="LOGGER">
@@ -86,8 +86,8 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
 
     //<editor-fold desc="maintenance">
-    /** Ob der {@link AgonesHealthTask Agones Health Task} dieses {@link AgonesSdk SDKs} bereits gestartet wurde. */
-    private boolean healthTaskStarted;
+    /** Der {@link StreamObserver Stream}, in den die Pings des Health-Tasks eingeschleust werden. */
+    private StreamObserver<Empty> healthTaskStream;
     //</editor-fold>
 
     //<editor-fold desc="stubs">
@@ -174,6 +174,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
     //<editor-fold desc="implementation">
     @Override
     public void ready() {
+        // call the endpoint with an empty request and ignore the response
         stub.ready(
             Empty.getDefaultInstance(),
             NoopStreamObserver.getInstance()
@@ -182,17 +183,26 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void health() {
-        stub.health(NoopStreamObserver.getInstance());
+        // open a new health ping stream (which does not send any health pings yet)
+        final StreamObserver<Empty> sendObserver = stub.health(NoopStreamObserver.getInstance());
+
+        // send the actual health ping
+        sendObserver.onNext(Empty.getDefaultInstance());
+
+        // close the ping stream right away
+        sendObserver.onCompleted();
     }
 
     @Override
     public void reserve(@Range(from = 0, to = Integer.MAX_VALUE) final long seconds) {
+        // check that the seconds are within the allowed bounds
         Preconditions.checkArgument(
             seconds >= 0,
             "The supplied seconds \"%s\" are not positive!",
             seconds
         );
 
+        // call the endpoint with the duration and ignore the response
         stub.reserve(
             Duration.newBuilder()
                 .setSeconds(seconds)
@@ -203,6 +213,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void allocate() {
+        // call the endpoint with an empty request and ignore the response
         stub.allocate(
             Empty.getDefaultInstance(),
             NoopStreamObserver.getInstance()
@@ -211,6 +222,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void shutdown() {
+        // call the endpoint with an empty request and ignore the response
         stub.shutdown(
             Empty.getDefaultInstance(),
             NoopStreamObserver.getInstance()
@@ -219,12 +231,14 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void label(@NotNull final String key, @NotNull final String value) {
+        // check that the label key is allowed within kubernetes
         Preconditions.checkArgument(
-            META_KEY_PATTERN.matcher(value).matches(),
+            META_KEY_PATTERN.matcher(key).matches(),
             "The supplied key \"%s\" does not match the pattern for label keys.",
             value
         );
 
+        // call the endpoint with the mapping and ignore the response
         stub.setLabel(
             KeyValue.newBuilder()
                 .setKey(key)
@@ -236,12 +250,14 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void annotation(@NotNull final String key, @NotNull final String value) {
+        // check that the label key is allowed within kubernetes
         Preconditions.checkArgument(
-            META_KEY_PATTERN.matcher(value).matches(),
+            META_KEY_PATTERN.matcher(key).matches(),
             "The supplied key \"%s\" does not match the pattern for annotation keys.",
             value
         );
 
+        // call the endpoint with the mapping and ignore the response
         stub.setAnnotation(
             KeyValue.newBuilder()
                 .setKey(key)
@@ -255,16 +271,19 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
     @Override
     @Contract(value = " -> new", pure = true)
     public GameServer gameServer() {
+        // call the endpoint (synchronously) with an empty request and return the response
         return blockingStub.getGameServer(Empty.getDefaultInstance());
     }
 
     @Override
     public void watchGameServer(@NotNull final Consumer<@NotNull GameServer> callback) {
+        // check that the provided callback actually exists
         Preconditions.checkNotNull(
             callback,
             "The supplied callback cannot be null!"
         );
 
+        // call the endpoint with an empty request and use the callback to handle responses
         stub.watchGameServer(
             Empty.getDefaultInstance(),
             CallbackStreamObserver.getInstance(callback)
@@ -273,15 +292,18 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
     @Override
     public void startHealthTask() {
+        // check that the health task was not already started
         Preconditions.checkState(
-            !healthTaskStarted,
+            healthTaskStream == null,
             "The health task was already started for this SDK and cannot be started again!"
         );
 
-        healthTaskStarted = true;
+        // assign a new async stream to send the health pings in
+        healthTaskStream = stub.health(NoopStreamObserver.getInstance());
 
+        // register the task to periodically send pings
         executorService.scheduleAtFixedRate(
-            new AgonesHealthTask(this),
+            () -> healthTaskStream.onNext(Empty.getDefaultInstance()),
             0,
             HEALTH_PING_INTERVAL.toMillis(),
             TimeUnit.MILLISECONDS
@@ -307,6 +329,11 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
     @Override
     public void close() {
         try {
+            // cancel the running health task (if any)
+            if (healthTaskStream != null) {
+                healthTaskStream.onCompleted();
+            }
+
             // shutdown and wait for it to complete
             channel
                 .shutdown()
@@ -385,6 +412,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
          */
         @Contract(pure = true)
         public GrpcAlpha(@NotNull final Channel channel) {
+            // create the blocking and non-blocking stubs for the communication with agones
             stub = agones.dev.sdk.alpha.SDKGrpc.newStub(channel);
             blockingStub = agones.dev.sdk.alpha.SDKGrpc.newBlockingStub(channel);
         }
@@ -394,11 +422,13 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
         //<editor-fold desc="implementation">
         @Override
         public boolean playerConnect(@NotNull final UUID playerId) {
+            // check that there was actually player ID supplied
             Preconditions.checkNotNull(
                 playerId,
                 "The supplied player ID cannot be null!"
             );
 
+            // call the endpoint with the player ID and return the response
             return blockingStub.playerConnect(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId.toString())
@@ -408,11 +438,13 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
         @Override
         public boolean playerDisconnect(@NotNull final UUID playerId) {
+            // check that there was actually player ID supplied
             Preconditions.checkNotNull(
                 playerId,
                 "The supplied player ID cannot be null!"
             );
 
+            // call the endpoint with the player ID and return the response
             return blockingStub.playerDisconnect(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId.toString())
@@ -425,6 +457,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
         @Unmodifiable
         @Contract(value = " -> new", pure = true)
         public List<@NotNull UUID> connectedPlayers() {
+            // call the endpoint with an empty request and return the mapped response
             return blockingStub.getConnectedPlayers(
                     agones.dev.sdk.alpha.Alpha.Empty.getDefaultInstance()
                 )
@@ -437,11 +470,13 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
         @Override
         @Contract(pure = true)
         public boolean isPlayerConnected(@NotNull final UUID playerId) {
+            // check that there was actually player ID supplied
             Preconditions.checkNotNull(
                 playerId,
                 "The supplied player ID cannot be null!"
             );
 
+            // call the endpoint with the player ID and return the response
             return blockingStub.isPlayerConnected(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId.toString())
@@ -453,6 +488,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
         @Contract(pure = true)
         @Range(from = 0, to = Long.MAX_VALUE)
         public long playerCount() {
+            // call the endpoint with an empty request and return the response
             return blockingStub.getPlayerCount(
                 agones.dev.sdk.alpha.Alpha.Empty.getDefaultInstance()
             ).getCount();
@@ -462,6 +498,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
         @Contract(pure = true)
         @Range(from = 0, to = Long.MAX_VALUE)
         public long playerCapacity() {
+            // call the endpoint with an empty request and return the response
             return blockingStub.getPlayerCapacity(
                 agones.dev.sdk.alpha.Alpha.Empty.getDefaultInstance()
             ).getCount();
@@ -469,12 +506,14 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
 
         @Override
         public void playerCapacity(@Range(from = 0, to = Long.MAX_VALUE) final long capacity) {
+            // check that the capacity is within allowed bounds
             Preconditions.checkArgument(
                 capacity >= 0,
                 "The supplied capacity \"%s\" is not positive!",
                 capacity
             );
 
+            // call the endpoint with the count and ignore the response
             stub.setPlayerCapacity(
                 Count.newBuilder()
                     .setCount(capacity)
@@ -516,6 +555,7 @@ public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
          */
         @Contract(pure = true)
         public GrpcBeta(@NotNull final Channel channel) {
+            // create the blocking and non-blocking stubs for the communication with agones
             stub = agones.dev.sdk.beta.SDKGrpc.newStub(channel);
             blockingStub = agones.dev.sdk.beta.SDKGrpc.newBlockingStub(channel);
         }
