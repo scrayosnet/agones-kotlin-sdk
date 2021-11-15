@@ -17,7 +17,6 @@ plugins {
     checkstyle
     idea
     id("org.sonarqube") version "3.3"
-    id("com.github.johnrengelman.shadow") version "7.1.0"
     id("com.google.protobuf") version "0.8.17"
 }
 
@@ -146,14 +145,6 @@ tasks {
     // don't run checkstyle for test classes
     checkstyleTest {
         enabled = false
-    }
-
-    shadowJar {
-        // merge all service files, so that they can be easily evaluated in the library
-        mergeServiceFiles()
-
-        // minimize the output afterwards as we have proper api/implementation separation
-        minimize()
     }
 
     test {

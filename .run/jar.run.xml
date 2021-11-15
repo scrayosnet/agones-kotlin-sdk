@@ -1,15 +1,15 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Gradle: ShadowJar" type="GradleRunConfiguration" factoryName="Gradle">
+  <configuration default="false" name="Gradle: Jar" type="GradleRunConfiguration" factoryName="Gradle">
     <ExternalSystemSettings>
-      <option name="executionName" />
-      <option name="externalProjectPath" value="$PROJECT_DIR$" />
-      <option name="externalSystemIdString" value="GRADLE" />
-      <option name="scriptParameters" value="shadowJar" />
+      <option name="executionName"/>
+      <option name="externalProjectPath" value="$PROJECT_DIR$"/>
+      <option name="externalSystemIdString" value="GRADLE"/>
+      <option name="scriptParameters" value="jar"/>
       <option name="taskDescriptions">
-        <list />
+        <list/>
       </option>
       <option name="taskNames">
-        <list />
+        <list/>
       </option>
       <option name="vmOptions" />
     </ExternalSystemSettings>
