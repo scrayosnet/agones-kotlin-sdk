@@ -18,11 +18,9 @@ variables:
 
 stages:
 - 'compile'
-- 'unit tests'
-- 'integration tests'
-- 'coverage tests'
-- 'static code analysis'
-- 'continuous inspection'
+- 'test'
+- 'coverage'
+- 'quality assurance'
 - 'deploy'
 - 'release'
 
@@ -54,11 +52,16 @@ compile:
   - './gradlew compileJava'
 
 
-# unit test
+# test
 
-.unittest: &unittest
+.test: &test
   interruptible: true
-  stage: 'unit tests'
+  stage: 'test'
+  services:
+  - 'docker:dind'
+  variables:
+    DOCKER_HOST: 'tcp://docker:2375'
+    DOCKER_TLS_CERTDIR: ''
   script:
   - './gradlew test'
   artifacts:
@@ -70,86 +73,34 @@ compile:
       - 'build/test-results/test/TEST-*.xml'
     when: 'always'
 
-unitTest-production:
-  <<: *unittest
+test-production:
+  <<: *test
   <<: *production-job
 
-unitTest-development:
-  <<: *unittest
+test-development:
+  <<: *test
   <<: *development-job
 
 
-# integration test
+# pitest
 
-.integrationTest: &integrationTest
-  interruptible: true
-  stage: 'integration tests'
-  script:
-  - './gradlew integrationTest'
-  services:
-  - 'docker:dind'
-  variables:
-    DOCKER_HOST: 'tcp://docker:2375'
-    DOCKER_TLS_CERTDIR: ''
-  artifacts:
-    paths:
-    - 'build/jacoco/integrationTest.exec'
-    - 'build/test-results/integrationTest/'
-    reports:
-      junit:
-      - 'build/test-results/integrationTest/TEST-*.xml'
-    when: 'always'
-
-integrationTest-production:
-  <<: *integrationTest
-  <<: *production-job
-
-integrationTest-development:
-  <<: *integrationTest
-  <<: *development-job
-
-
-# jacoco
-
-.jacoco: &jacoco
+.pitest: &pitest
   interruptible: true
   stage: 'coverage tests'
   script:
-  - './gradlew jacocoTestReport'
-  - 'awk -F"," ''{ instructions += $4 + $5; covered += $5 } END { print covered, "/", instructions, "instructions covered"; print 100*covered/instructions "% covered" }'' build/reports/jacoco/test/jacocoTestReport.csv'
+  - './gradlew pitest'
   artifacts:
     paths:
-    - 'build/reports/jacoco/test/jacocoTestReport.xml'
+    - 'build/reports/pitest'
     when: 'always'
-  coverage: '/(\d+(?:\.\d+)?)% covered/'
+  coverage: '/>> Generated \d+ mutations Killed \d+ \((\d+(?:\.\d+)?)%\)/'
 
-jacoco-production:
-  <<: *jacoco
+pitest-production:
+  <<: *pitest
   <<: *production-job
 
-jacoco-development:
-  <<: *jacoco
-  <<: *development-job
-
-
-# checkstyle
-
-.checkstyle: &checkstyle
-  interruptible: true
-  stage: 'static code analysis'
-  script:
-  - './gradlew checkstyleMain'
-  artifacts:
-    paths:
-    - 'build/reports/checkstyle/main.xml'
-    when: 'always'
-
-checkstyle-production:
-  <<: *checkstyle
-  <<: *production-job
-
-checkstyle-development:
-  <<: *checkstyle
+pitest-development:
+  <<: *pitest
   <<: *development-job
 
 
@@ -157,7 +108,7 @@ checkstyle-development:
 
 .sonarqube: &sonarqube
   interruptible: true
-  stage: 'continuous inspection'
+  stage: 'quality assurance'
   script:
   - './gradlew sonarqube -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN -Dsonar.gitlab.project_id=$CI_PROJECT_ID -Dsonar.gitlab.commit_sha=$CI_COMMIT_SHA -Dsonar.gitlab.ref_name=$CI_COMMIT_REF_NAME -Dsonar.pitest.mode=reuseReport'
 
@@ -173,7 +124,6 @@ sonarqube-development:
 # deploy
 
 maven:
-  interruptible: true
   stage: 'deploy'
   script:
   - './gradlew publish'
@@ -186,7 +136,6 @@ maven:
 # pages
 
 pages:
-  interruptible: true
   stage: 'deploy'
   script:
   - './gradlew javadoc'

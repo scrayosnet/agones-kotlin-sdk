@@ -13,8 +13,6 @@ description = "Agones Java Client SDK"
 plugins {
     `java-library`
     `maven-publish`
-    jacoco
-    checkstyle
     idea
     id("org.sonarqube") version "3.3"
     id("com.google.protobuf") version "0.8.17"
@@ -40,7 +38,6 @@ dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // testing resources (are present during compilation and runtime [shaded])
-    testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
     testImplementation("org.mockito:mockito-junit-jupiter:4.0.0")
     testImplementation("org.testcontainers:testcontainers:1.16.2")
     testImplementation("org.testcontainers:junit-jupiter:1.16.2")
@@ -92,6 +89,14 @@ protobuf {
     }
 }
 
+testing {
+    suites {
+        val test by getting(JvmTestSuite::class) {
+            useJUnitJupiter("5.8.1")
+        }
+    }
+}
+
 // configure the publishing in the maven repository
 publishing {
     // define the repositories that shall be used for publishing
@@ -116,21 +121,11 @@ publishing {
     }
 }
 
-// configure checkstyle plugin
-checkstyle {
-    toolVersion = "9.0.1"
-    config =
-        resources.text.fromUri(uri("https://scrayosnet.pages.dev.scrayos.net/SuperCompanyPOM/checkstyle.config.xml"))
-    isIgnoreFailures = false
-    maxWarnings = 0
-}
-
 // configure sonarqube plugin
 sonarqube {
     properties {
         property("sonar.projectName", "AgonesClientSDK")
         property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
-        property("sonar.java.checkstyle.reportPaths", "build/reports/checkstyle/main.xml")
     }
 }
 
@@ -140,35 +135,6 @@ tasks {
         options.compilerArgs.add("-Xlint:all")
         options.compilerArgs.add("-Xlint:-processing")
         options.encoding = "UTF-8"
-    }
-
-    // don't run checkstyle for test classes
-    checkstyleTest {
-        enabled = false
-    }
-
-    test {
-        // enable unit tests (without integration)
-        useJUnitPlatform {
-            excludeTags("integration")
-        }
-    }
-
-    register("integrationTest", Test::class) {
-        // enable integration tests (without units)
-        useJUnitPlatform {
-            includeTags("integration")
-        }
-    }
-
-    jacocoTestReport {
-        reports {
-            xml.required.set(true)
-            csv.required.set(true)
-        }
-
-        // include multiple jacoco exec files (we separate unit and integration tests)
-        executionData.setFrom(fileTree(buildDir).include("/jacoco/*.exec"))
     }
 
     withType<Javadoc> {
