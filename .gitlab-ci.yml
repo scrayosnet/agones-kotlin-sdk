@@ -86,7 +86,7 @@ test-development:
 
 .pitest: &pitest
   interruptible: true
-  stage: 'coverage tests'
+  stage: 'coverage'
   script:
   - './gradlew pitest'
   artifacts:
