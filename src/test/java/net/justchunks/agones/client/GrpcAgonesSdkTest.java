@@ -289,12 +289,19 @@ class GrpcAgonesSdkTest {
     @Test
     @SuppressWarnings("unchecked")
     @DisplayName("Should not receive initial GameServer update")
-    void shouldNotReceiveInitialUpdate() {
+    void shouldNotReceiveInitialUpdate() throws TimeoutException {
         // given
         Consumer<GameServer> gameServerConsumer = (Consumer<GameServer>) mock(Consumer.class);
 
         // when
         sdk.watchGameServer(gameServerConsumer);
+
+        // wait
+        logConsumer.waitUntil(
+            frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
+            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            TimeUnit.MILLISECONDS
+        );
 
         // then
         verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(0)).accept(any());
@@ -303,7 +310,7 @@ class GrpcAgonesSdkTest {
     @Test
     @SuppressWarnings("unchecked")
     @DisplayName("Should receive GameServer updates")
-    void shouldReceiveUpdates() {
+    void shouldReceiveUpdates() throws TimeoutException {
         // given
         String labelKey = "valid_key";
         String labelValue = "valid_value";
@@ -312,10 +319,20 @@ class GrpcAgonesSdkTest {
 
         // when
         sdk.watchGameServer(gameServerConsumer);
+
+        // wait
+        logConsumer.waitUntil(
+            frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
+            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            TimeUnit.MILLISECONDS
+        );
+
+        // when
         sdk.label(labelKey, labelValue);
 
         // then
         verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS)).accept(captor.capture());
+        System.out.println(sdkContainer.getLogs());
         Map<String, String> labelMap = captor.getValue().getObjectMeta().getLabelsMap();
         Assertions.assertTrue(labelMap.containsKey(META_PREFIX + labelKey));
         Assertions.assertTrue(labelMap.containsValue(labelValue));
@@ -390,6 +407,19 @@ class GrpcAgonesSdkTest {
     }
 
     @Test
+    @DisplayName("Close should refresh interrupted flag")
+    void closeShouldBeInterruptable() {
+        // given
+        Thread.currentThread().interrupt();
+
+        // when
+        sdk.close();
+
+        // then
+        Assertions.assertTrue(Thread.interrupted());
+    }
+
+    @Test
     @DisplayName("Should return valid Alpha channel")
     void shouldReturnAlphaSdk() {
         // given
@@ -460,6 +490,23 @@ class GrpcAgonesSdkTest {
 
             // when, then
             Assertions.assertThrows(IllegalStateException.class, () -> alphaSdk.playerConnect(playerId));
+        }
+
+        @Test
+        @DisplayName("Should rethrow normal exception on error during player connect")
+        void shouldRethrowOnConnectPlayerException() {
+            // given
+            Alpha alphaSdk = sdk.alpha();
+            UUID playerId = UUID.randomUUID();
+
+            // when
+            sdk.close();
+
+            // when, then
+            Assertions.assertNotEquals(
+                IllegalStateException.class,
+                Assertions.assertThrows(Throwable.class, () -> alphaSdk.playerConnect(playerId)).getClass()
+            );
         }
 
         @Test
