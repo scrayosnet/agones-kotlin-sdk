@@ -27,11 +27,13 @@ repositories {
 
 // declare all dependencies (for compilation and runtime)
 dependencies {
-    // runtime resources (are present during compilation and runtime [shaded])
-    implementation("com.google.protobuf:protobuf-java:3.19.1")
+    //
+    api("com.google.protobuf:protobuf-java:3.19.1")
+
+    // runtime resources (are present during compilation and runtime)
     implementation("io.grpc:grpc-netty-shaded:1.42.0")
     implementation("io.grpc:grpc-protobuf:1.42.0")
-    implementation("io.grpc:grpc-stub:1.42.0")
+    implementation("io.grpc:grpc-stub:1.42.1")
 
     // classpaths we only compile against (are provided or unnecessary in runtime)
     compileOnly("org.apache.logging.log4j:log4j-api:2.14.1")
@@ -141,7 +143,6 @@ pitest {
 sonarqube {
     properties {
         property("sonar.projectName", "AgonesClientSDK")
-        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
     }
 }
 
