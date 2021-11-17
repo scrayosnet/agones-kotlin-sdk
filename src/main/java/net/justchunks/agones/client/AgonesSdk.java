@@ -79,6 +79,13 @@ public interface AgonesSdk extends AutoCloseable {
     Duration HEALTH_PING_INTERVAL = Duration.ofSeconds(5);
     //</editor-fold>
 
+    //<editor-fold desc="metadata">
+    /** Das Präfix, das dem Schlüssel der Labels und Annotationen automatisch vorangestellt wird um sie zu isolieren. */
+    @NonNls
+    @NotNull
+    String METADATA_KEY_PREFIX = "agones.dev/sdk-";
+    //</editor-fold>
+
     //</editor-fold>
 
 
@@ -160,10 +167,10 @@ public interface AgonesSdk extends AutoCloseable {
 
     /**
      * Fügt der Ressource dieser Instanz innerhalb von Kubernetes ein neues Label mit einem bestimmten Schlüssel und
-     * einem bestimmten Wert hinzu. Dem Schlüssel wird immer das Präfix {@code agones.dev/sdk-} vorangestellt um eine
-     * bessere Isolation und Sicherheit gewährleisten zu können. Dadurch können weitere Metadaten über diese Instanz
-     * veröffentlicht werden, die an anderer Stelle ausgelesen werden können und es ist möglich über das
-     * Schlüssel-Wert-Paar die GameServer Instanzen näher zu filtern.
+     * einem bestimmten Wert hinzu. Dem Schlüssel wird immer automatisch das Präfix {@value METADATA_KEY_PREFIX}
+     * vorangestellt um eine bessere Isolation und Sicherheit gewährleisten zu können. Dadurch können weitere Metadaten
+     * über diese Instanz veröffentlicht werden, die an anderer Stelle ausgelesen werden können und es ist möglich über
+     * das Schlüssel-Wert-Paar die GameServer Instanzen näher zu filtern.
      *
      * @param key   Der Schlüssel des Labels, das dieser Instanz neu zugewiesen werden soll.
      * @param value Der Wert des Labels, das dieser Instanz neu zugewiesen werden soll.
@@ -180,9 +187,9 @@ public interface AgonesSdk extends AutoCloseable {
 
     /**
      * Fügt der Ressource dieser Instanz innerhalb von Kubernetes eine neue Annotation mit einem bestimmten Schlüssel
-     * und einem bestimmten Wert hinzu. Dem Schlüssel wird immer das Präfix {@code agones.dev/sdk-} vorangestellt um
-     * eine bessere Isolation und Sicherheit gewährleisten zu können. Dadurch können weitere Metadaten über diese
-     * Instanz veröffentlicht werden, die an anderer Stelle ausgelesen werden können.
+     * und einem bestimmten Wert hinzu. Dem Schlüssel wird immer automatisch das Präfix {@value METADATA_KEY_PREFIX}
+     * vorangestellt um eine bessere Isolation und Sicherheit gewährleisten zu können. Dadurch können weitere Metadaten
+     * über diese Instanz veröffentlicht werden, die an anderer Stelle ausgelesen werden können.
      *
      * @param key   Der Schlüssel der Annotation, die dieser Instanz neu zugewiesen werden soll.
      * @param value Der Wert der Annotation, die dieser Instanz neu zugewiesen werden soll.

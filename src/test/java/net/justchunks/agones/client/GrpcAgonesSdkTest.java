@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+import static net.justchunks.agones.client.AgonesSdk.METADATA_KEY_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -49,7 +50,6 @@ class GrpcAgonesSdkTest {
     private static final int GRPC_PORT = 9357;
     private static final int HTTP_PORT = 9358;
     private static final int WAIT_TIMEOUT_MILLIS = 10_000;
-    private static final String META_PREFIX = "agones.dev/sdk-";
 
 
     private static ScheduledExecutorService executorService;
@@ -229,7 +229,7 @@ class GrpcAgonesSdkTest {
         JSONObject valuesObject = (JSONObject) ((JSONObject) new JSONParser().parse(logLine)).get("values");
         GameServer gameServer = sdk.gameServer();
         Assertions.assertEquals(key, valuesObject.get("key"));
-        Assertions.assertTrue(gameServer.getObjectMeta().getLabelsMap().containsKey(META_PREFIX + key));
+        Assertions.assertTrue(gameServer.getObjectMeta().getLabelsMap().containsKey(METADATA_KEY_PREFIX + key));
         Assertions.assertEquals(value, valuesObject.get("value"));
         Assertions.assertTrue(gameServer.getObjectMeta().getLabelsMap().containsValue(value));
     }
@@ -261,7 +261,7 @@ class GrpcAgonesSdkTest {
         JSONObject valuesObject = (JSONObject) ((JSONObject) new JSONParser().parse(logLine)).get("values");
         GameServer gameServer = sdk.gameServer();
         Assertions.assertEquals(key, valuesObject.get("key"));
-        Assertions.assertTrue(gameServer.getObjectMeta().getAnnotationsMap().containsKey(META_PREFIX + key));
+        Assertions.assertTrue(gameServer.getObjectMeta().getAnnotationsMap().containsKey(METADATA_KEY_PREFIX + key));
         Assertions.assertEquals(value, valuesObject.get("value"));
         Assertions.assertTrue(gameServer.getObjectMeta().getAnnotationsMap().containsValue(value));
     }
@@ -332,7 +332,7 @@ class GrpcAgonesSdkTest {
         verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS)).accept(captor.capture());
         System.out.println(sdkContainer.getLogs());
         Map<String, String> labelMap = captor.getValue().getObjectMeta().getLabelsMap();
-        Assertions.assertTrue(labelMap.containsKey(META_PREFIX + labelKey));
+        Assertions.assertTrue(labelMap.containsKey(METADATA_KEY_PREFIX + labelKey));
         Assertions.assertTrue(labelMap.containsValue(labelValue));
     }
 
