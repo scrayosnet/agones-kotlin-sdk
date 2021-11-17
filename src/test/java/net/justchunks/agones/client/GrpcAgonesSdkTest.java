@@ -418,6 +418,16 @@ class GrpcAgonesSdkTest {
     }
 
     @Test
+    @DisplayName("Automatic port should fall back to default port")
+    void automaticPortShouldFallBack() {
+        // when
+        final int defaultPort = GrpcAgonesSdk.getAutomaticPort();
+
+        // then
+        Assertions.assertEquals(GRPC_PORT, defaultPort);
+    }
+
+    @Test
     @DisplayName("Should return valid Alpha channel")
     void shouldReturnAlphaSdk() {
         // given
@@ -631,8 +641,8 @@ class GrpcAgonesSdkTest {
         }
 
         @Test
-        @DisplayName("Should get player count")
-        void shouldGetPlayerCount() {
+        @DisplayName("Should get player count empty")
+        void shouldGetPlayerCountEmpty() {
             // given
             Alpha alphaSdk = sdk.alpha();
 
@@ -641,6 +651,22 @@ class GrpcAgonesSdkTest {
 
             // then
             Assertions.assertEquals(0L, playerCount);
+        }
+
+        @Test
+        @DisplayName("Should get player count with players")
+        void shouldGetPlayerCount() {
+            // given
+            Alpha alphaSdk = sdk.alpha();
+            alphaSdk.playerConnect(UUID.randomUUID());
+            alphaSdk.playerConnect(UUID.randomUUID());
+            alphaSdk.playerConnect(UUID.randomUUID());
+
+            // when
+            long playerCount = alphaSdk.playerCount();
+
+            // then
+            Assertions.assertEquals(3L, playerCount);
         }
 
         @ParameterizedTest(name = "#playerCapacity({0})")

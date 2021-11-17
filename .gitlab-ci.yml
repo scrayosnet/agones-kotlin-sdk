@@ -66,6 +66,7 @@ compile:
   - './gradlew check'
   artifacts:
     paths:
+    - 'build/jacoco/test.exec'
     - 'build/test-results/test/'
     reports:
       junit:
@@ -78,6 +79,29 @@ test-production:
 
 test-development:
   <<: *test
+  <<: *development-job
+
+
+# jacoco
+
+.jacoco: &jacoco
+  interruptible: true
+  stage: 'coverage'
+  script:
+  - './gradlew jacocoTestReport'
+  - 'awk -F"," ''{ instructions += $4 + $5; covered += $5 } END { print covered, "/", instructions, "instructions covered"; print 100*covered/instructions "% covered" }'' build/reports/jacoco/test/jacocoTestReport.csv'
+  artifacts:
+    paths:
+    - 'build/reports/jacoco/test/jacocoTestReport.xml'
+    when: 'always'
+  coverage: '/(\d+(?:\.\d+)?)% covered/'
+
+jacoco-production:
+  <<: *jacoco
+  <<: *production-job
+
+jacoco-development:
+  <<: *jacoco
   <<: *development-job
 
 

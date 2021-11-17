@@ -24,6 +24,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Range;
 import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.VisibleForTesting;
 
 import java.util.List;
 import java.util.UUID;
@@ -360,9 +361,10 @@ public final class GrpcAgonesSdk implements AgonesSdk {
      * @return Der automatisch ermittelte Port für die Verbindung zum gRPC-Server der externen Schnittstelle des {@link
      *     AgonesSdk Agones SDKs}.
      */
+    @VisibleForTesting
     @Contract(pure = true)
     @Range(from = 0, to = 65_535)
-    private static int getAutomaticPort() {
+    static int getAutomaticPort() {
         // read the environment variable for the dynamic agones port
         final String textPort = System.getenv(AGONES_SDK_PORT_ENV_KEY);
 

@@ -13,6 +13,7 @@ description = "Agones Java Client SDK"
 plugins {
     `java-library`
     `maven-publish`
+    jacoco
     idea
     id("org.sonarqube") version "3.3"
     id("info.solidsoft.pitest") version "1.7.0"
@@ -143,6 +144,7 @@ pitest {
 sonarqube {
     properties {
         property("sonar.projectName", "AgonesClientSDK")
+        property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
     }
 }
 
@@ -179,6 +181,16 @@ tasks {
         )
         (options as StandardJavadocDocletOptions).serialWarn(true)
         (options as StandardJavadocDocletOptions).author(false)
+    }
+
+    jacocoTestReport {
+        reports {
+            xml.required.set(true)
+            csv.required.set(true)
+        }
+
+        // include multiple jacoco exec files (we separate unit and integration tests)
+        executionData.setFrom(fileTree(buildDir).include("/jacoco/*.exec"))
     }
 
     // register a new task to fetch the version for the release script
