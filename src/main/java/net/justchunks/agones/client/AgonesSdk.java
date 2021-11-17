@@ -62,7 +62,7 @@ import java.util.function.Consumer;
  *
  * @see <a href="https://agones.dev/site/docs/guides/client-sdks/">Agones Client SDK Dokumentation</a>
  */
-public interface AgonesSdk {
+public interface AgonesSdk extends AutoCloseable {
 
     //<editor-fold desc="CONSTANTS">
 
@@ -251,6 +251,22 @@ public interface AgonesSdk {
      *                               aktiviert werden kann.
      */
     void startHealthTask();
+
+    /**
+     * Schließt alle mit diesem {@link AgonesSdk Agones SDK} zusammenhängenden, offenen Ressourcen. Anschließend kann
+     * dieses {@link AgonesSdk Agones SDK} nicht mehr verwendet werden. Diese Methode ist idempotent und kann daher
+     * beliebig oft aufgerufen werden, ohne dass sich das Verhalten dadurch verändert. Es wird garantiert, dass nach dem
+     * Aufruf dieser Methode alle offenen Verbindungen und genutzten Ressourcen geschlossen bzw. freigegeben wurden.
+     * Obwohl nicht alle Implementationen über solche Ressourcen verfügen, sollte die Methode dennoch immer (zum
+     * Beispiel innerhalb eines Try-With-Resources Blocks) aufgerufen werden, um die Nutzung sauber zu beenden.
+     *
+     * @implNote Das Schließen der offenen Verbindungen und das Freigeben der Ressourcen muss blocking passieren,
+     *     damit nach dem Aufruf garantiert heruntergefahren werden kann. Der Unterschied dieser Methode zu {@link
+     *     AutoCloseable#close()} ist, dass die Auslösung von Fehlern nicht gestattet wird.
+     * @see AutoCloseable
+     */
+    @Override
+    void close();
     //</editor-fold>
 
     //<editor-fold desc="release channels">

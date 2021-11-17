@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
  * Spezifikation von Agones vollständig.
  */
 @SuppressWarnings({"FieldCanBeLocal", "ConstantConditions", "java:S1192"})
-public final class GrpcAgonesSdk implements AgonesSdk, AutoCloseable {
+public final class GrpcAgonesSdk implements AgonesSdk {
 
     //<editor-fold desc="LOGGER">
     /** Der Logger, der für das Senden der Fehlermeldungen  in dieser Klasse verwendet werden soll. */

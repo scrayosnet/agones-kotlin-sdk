@@ -15,6 +15,7 @@ plugins {
     `maven-publish`
     idea
     id("org.sonarqube") version "3.3"
+    id("info.solidsoft.pitest") version "1.7.0"
     id("com.google.protobuf") version "0.8.17"
 }
 
@@ -119,6 +120,21 @@ publishing {
             from(components["java"])
         }
     }
+}
+
+// configure pitest plugin
+pitest {
+    pitestVersion.set("1.7.3")
+    junit5PluginVersion.set("0.15")
+
+    threads.set(8)
+    enableDefaultIncrementalAnalysis.set(true)
+
+    outputFormats.addAll("XML", "HTML")
+    timestampedReports.set(false)
+
+    mainSourceSets.add(sourceSets.main)
+    testSourceSets.add(sourceSets.test)
 }
 
 // configure sonarqube plugin

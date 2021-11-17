@@ -33,6 +33,9 @@ class AgonesSdkFactoryTest {
 
         // then
         Assertions.assertNotNull(sdk);
+
+        // cleanup
+        sdk.close();
     }
 
     @Test
@@ -44,5 +47,9 @@ class AgonesSdkFactoryTest {
 
         // then
         Assertions.assertNotEquals(sdk1, sdk2);
+
+        // cleanup
+        sdk1.close();
+        sdk2.close();
     }
 }

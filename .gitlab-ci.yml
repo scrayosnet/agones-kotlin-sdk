@@ -4,11 +4,11 @@ image: 'registry.dev.scrayos.net/scrayosnet/developmentenvironments/gradle:7-jdk
 cache:
 - key: '$CI_PIPELINE_ID'
   paths:
-  - 'build/'
+  - 'build'
 - key: '$CI_COMMIT_REF_SLUG'
   paths:
-  - 'build-cache/'
-  - '.gradle/'
+  - 'build-cache'
+  - '.gradle'
 
 
 variables:
@@ -49,7 +49,7 @@ compile:
   interruptible: true
   stage: 'compile'
   script:
-  - './gradlew compileJava'
+  - './gradlew assemble'
 
 
 # test
@@ -63,10 +63,9 @@ compile:
     DOCKER_HOST: 'tcp://docker:2375'
     DOCKER_TLS_CERTDIR: ''
   script:
-  - './gradlew test'
+  - './gradlew check'
   artifacts:
     paths:
-    - 'build/jacoco/test.exec'
     - 'build/test-results/test/'
     reports:
       junit:
@@ -89,6 +88,10 @@ test-development:
   stage: 'coverage'
   script:
   - './gradlew pitest'
+  cache:
+  - key: '$CI_PROJECT_ID'
+    paths:
+    - 'build/pitHistory.txt'
   artifacts:
     paths:
     - 'build/reports/pitest'
