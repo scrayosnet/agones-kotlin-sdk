@@ -93,6 +93,7 @@ protobuf {
     }
 }
 
+// configure testing suites within gradle check phase
 testing {
     suites {
         val test by getting(JvmTestSuite::class) {
