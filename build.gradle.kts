@@ -28,7 +28,7 @@ repositories {
 
 // declare all dependencies (for compilation and runtime)
 dependencies {
-    //
+    // add protobuf-java as a global api dependency (because of the generated messages)
     api("com.google.protobuf:protobuf-java:3.19.1")
 
     // runtime resources (are present during compilation and runtime)
