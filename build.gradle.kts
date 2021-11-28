@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_VARIABLE")
+
 import com.google.protobuf.gradle.*
 
 // define variables that get supplied through gradle.properties
@@ -32,8 +34,8 @@ dependencies {
     api("com.google.protobuf:protobuf-java:3.19.1")
 
     // runtime resources (are present during compilation and runtime)
-    implementation("io.grpc:grpc-netty-shaded:1.42.0")
-    implementation("io.grpc:grpc-protobuf:1.42.0")
+    implementation("io.grpc:grpc-netty-shaded:1.42.1")
+    implementation("io.grpc:grpc-protobuf:1.42.1")
     implementation("io.grpc:grpc-stub:1.42.1")
 
     // classpaths we only compile against (are provided or unnecessary in runtime)
