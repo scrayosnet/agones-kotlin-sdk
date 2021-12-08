@@ -19,7 +19,7 @@ plugins {
     idea
     id("org.sonarqube") version "3.3"
     id("info.solidsoft.pitest") version "1.7.0"
-    id("com.google.protobuf") version "0.8.17"
+    id("com.google.protobuf") version "0.8.18"
 }
 
 // configure the repositories for the dependencies
@@ -44,7 +44,7 @@ dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // testing resources (are present during compilation and runtime [shaded])
-    testImplementation("org.mockito:mockito-junit-jupiter:4.0.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:4.1.0")
     testImplementation("org.testcontainers:testcontainers:1.16.2")
     testImplementation("org.testcontainers:junit-jupiter:1.16.2")
     testImplementation("com.googlecode.json-simple:json-simple:1.1.1")
@@ -79,7 +79,7 @@ protobuf {
         // add a new "grpc" plugin for the java stub generation
         id("grpc") {
             // set the artifact for protobuf code generation (stubs)
-            artifact = "io.grpc:protoc-gen-grpc-java:1.41.0"
+            artifact = "io.grpc:protoc-gen-grpc-java:1.42.1"
         }
     }
 
@@ -159,7 +159,16 @@ tasks {
         options.encoding = "UTF-8"
     }
 
+    jar {
+        // exclude the proto files as we won't need them in downstream projects
+        exclude("**/*.proto")
+
+        // exclude the now empty folders (because the proto files were removed)
+        includeEmptyDirs = false
+    }
+
     withType<Javadoc> {
+        // we always want a javadoc, so we fail if javadoc fails
         isFailOnError = true
 
         options {
