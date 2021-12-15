@@ -34,13 +34,13 @@ dependencies {
     api("com.google.protobuf:protobuf-java:3.19.1")
 
     // runtime resources (are present during compilation and runtime)
-    implementation("io.grpc:grpc-netty-shaded:1.42.1")
-    implementation("io.grpc:grpc-protobuf:1.42.1")
-    implementation("io.grpc:grpc-stub:1.42.1")
+    implementation("io.grpc:grpc-netty-shaded:1.43.0")
+    implementation("io.grpc:grpc-protobuf:1.43.0")
+    implementation("io.grpc:grpc-stub:1.43.0")
 
     // classpaths we only compile against (are provided or unnecessary in runtime)
-    compileOnly("org.apache.logging.log4j:log4j-api:2.14.1")
-    compileOnly("org.jetbrains:annotations:22.0.0")
+    compileOnly("org.apache.logging.log4j:log4j-api:2.16.0")
+    compileOnly("org.jetbrains:annotations:23.0.0")
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // testing resources (are present during compilation and runtime [shaded])
@@ -48,11 +48,11 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.16.2")
     testImplementation("org.testcontainers:junit-jupiter:1.16.2")
     testImplementation("com.googlecode.json-simple:json-simple:1.1.1")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.14.1")
-    testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.14.1")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.16.0")
+    testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.16.0")
 
     // classpath we only compile our test-code against (are provided or unnecessary in runtime)
-    testCompileOnly("org.jetbrains:annotations:22.0.0")
+    testCompileOnly("org.jetbrains:annotations:23.0.0")
 }
 
 // configure the java extension (versions + jars)
@@ -99,7 +99,7 @@ protobuf {
 testing {
     suites {
         val test by getting(JvmTestSuite::class) {
-            useJUnitJupiter("5.8.1")
+            useJUnitJupiter("5.8.2")
         }
     }
 }
