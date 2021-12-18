@@ -39,7 +39,7 @@ dependencies {
     implementation("io.grpc:grpc-stub:1.43.0")
 
     // classpaths we only compile against (are provided or unnecessary in runtime)
-    compileOnly("org.apache.logging.log4j:log4j-api:2.16.0")
+    compileOnly("org.apache.logging.log4j:log4j-api:2.17.0")
     compileOnly("org.jetbrains:annotations:23.0.0")
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
@@ -48,8 +48,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers:1.16.2")
     testImplementation("org.testcontainers:junit-jupiter:1.16.2")
     testImplementation("com.googlecode.json-simple:json-simple:1.1.1")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.16.0")
-    testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.16.0")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.17.0")
+    testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.0")
 
     // classpath we only compile our test-code against (are provided or unnecessary in runtime)
     testCompileOnly("org.jetbrains:annotations:23.0.0")
