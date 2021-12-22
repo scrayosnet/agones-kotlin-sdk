@@ -15,12 +15,16 @@ public final class AgonesSdkFactory {
 
     //<editor-fold desc="CONSTRUCTORS">
     /**
-     * Ein leerer Konstruktor um die Instantiierung dieser Fabrikklasse zu verhindern. Der Konstruktor bewirkt
-     * entsprechend keinerlei Aktionen und wurde nur aus technischen Gründen implementiert.
+     * Ein privater Konstruktor um die Instantiierung dieser Fabrikklasse zu verhindern. Der Konstruktor löst in jedem
+     * Fall eine {@link UnsupportedOperationException} aus und wurde nur implementiert, um eine Instantiierung dieser
+     * Klasse unmöglich zu machen.
      */
-    @Contract(pure = true)
+    @Contract(value = " -> fail", pure = true)
     private AgonesSdkFactory() {
-        // intentionally empty – this is a factory class
+        // always throw an exception as this class should not be instantiated
+        throw new UnsupportedOperationException(
+            "This is a utility class and therefore cannot be instantiated."
+        );
     }
     //</editor-fold>
 

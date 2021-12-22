@@ -19,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
 public final class NoopStreamObserver<E> implements StreamObserver<E> {
 
     //<editor-fold desc="LOGGER">
-    /** Der Logger, der für das Senden der Fehlermeldungen  in dieser Klasse verwendet werden soll. */
+    /** Der Logger, der für das Senden der Fehlermeldungen in dieser Klasse verwendet werden soll. */
     @NotNull
     private static final Logger LOG = LogManager.getLogger(NoopStreamObserver.class);
     //</editor-fold>

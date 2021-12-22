@@ -53,7 +53,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     //<editor-fold desc="CONSTANTS">
 
     //<editor-fold desc="port">
-    /** Der Port, über den die Kommunikation dem das Agones SDK über gRPC standardmäßig stattfindet. */
+    /** Der Port, über den die Kommunikation mit dem Agones SDK über gRPC standardmäßig stattfindet. */
     @Range(from = 0, to = 65_535)
     private static final int DEFAULT_AGONES_SDK_PORT = 9357;
     /** Der Schlüssel der Umgebungsvariable, aus der der Port für das Agones SDK ausgelesen werden kann. */
