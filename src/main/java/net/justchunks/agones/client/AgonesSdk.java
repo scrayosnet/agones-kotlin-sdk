@@ -57,8 +57,7 @@ import java.util.function.Consumer;
  *
  * <p>Die Signaturen der Endpunkte des SDKs wurden teilweise geringfügig auf unsere Struktur angepasst, entsprechen aber
  * im Allgemeinen den offiziellen Schnittstellen. Das SDK wird immer kompatibel zu den offiziellen Empfehlungen gehalten
- * und sollte möglichst direkt verwendet werden, da die einzelnen Schritte atomar aufgebaut sind. Es wird garantiert,
- * dass die Ressourcen, auf die die SDKs operieren, an keiner anderen Stelle modifiziert werden.
+ * und sollte möglichst direkt verwendet werden, da die einzelnen Schritte atomar aufgebaut sind.
  *
  * @see <a href="https://agones.dev/site/docs/guides/client-sdks/">Agones Client SDK Dokumentation</a>
  */
