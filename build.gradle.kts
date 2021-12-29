@@ -34,9 +34,9 @@ dependencies {
     api("com.google.protobuf:protobuf-java:3.19.1")
 
     // runtime resources (are present during compilation and runtime)
-    implementation("io.grpc:grpc-netty-shaded:1.43.0")
-    implementation("io.grpc:grpc-protobuf:1.43.0")
-    implementation("io.grpc:grpc-stub:1.43.0")
+    implementation("io.grpc:grpc-netty-shaded:1.43.1")
+    implementation("io.grpc:grpc-protobuf:1.43.1")
+    implementation("io.grpc:grpc-stub:1.43.1")
 
     // classpaths we only compile against (are provided or unnecessary in runtime)
     compileOnly("org.apache.logging.log4j:log4j-api:2.17.0")
@@ -44,12 +44,12 @@ dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // testing resources (are present during compilation and runtime [shaded])
-    testImplementation("org.mockito:mockito-junit-jupiter:4.1.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:4.2.0")
     testImplementation("org.testcontainers:testcontainers:1.16.2")
     testImplementation("org.testcontainers:junit-jupiter:1.16.2")
     testImplementation("com.googlecode.json-simple:json-simple:1.1.1")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.17.0")
-    testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.0")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.17.1")
+    testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
 
     // classpath we only compile our test-code against (are provided or unnecessary in runtime)
     testCompileOnly("org.jetbrains:annotations:23.0.0")
@@ -79,7 +79,7 @@ protobuf {
         // add a new "grpc" plugin for the java stub generation
         id("grpc") {
             // set the artifact for protobuf code generation (stubs)
-            artifact = "io.grpc:protoc-gen-grpc-java:1.42.1"
+            artifact = "io.grpc:protoc-gen-grpc-java:1.43.1"
         }
     }
 
