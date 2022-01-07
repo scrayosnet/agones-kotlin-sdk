@@ -57,9 +57,11 @@ dependencies {
 
 // configure the java extension (versions + jars)
 java {
-    // configure the versions that we compile with/to
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    // set the toolchain version that is required to build this project
+    // replaces sourceCompatibility and targetCompatibility as it also sets these implicitly
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 
     // also generate javadoc and sources
     withSourcesJar()
