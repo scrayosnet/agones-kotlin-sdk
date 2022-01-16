@@ -478,7 +478,9 @@ public final class GrpcAgonesSdk implements AgonesSdk {
                         final Status state = ex.getStatus();
 
                         // if the player limit is exhausted, convert the exception
-                        if (state.getCode().value() == 2 && state.getDescription().equals("Players are already at capacity")) {
+                        if (state.getCode().value() == 2
+                            && state.getDescription().equals("Players are already at capacity")
+                        ) {
                             throw new IllegalStateException("Player capacity is exhausted!");
                         }
                     }
