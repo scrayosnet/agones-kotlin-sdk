@@ -8,7 +8,7 @@ val mavenRepositoryToken: String by project
 
 // provide general GAV coordinates
 group = "net.justchunks"
-version = "2.0.0"
+version = "2.0.1-SNAPSHOT"
 description = "Agones Java Client SDK"
 
 // hook the plugins for the builds
