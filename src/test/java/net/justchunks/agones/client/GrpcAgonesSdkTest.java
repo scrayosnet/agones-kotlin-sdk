@@ -607,9 +607,9 @@ class GrpcAgonesSdkTest {
             UUID playerId3 = UUID.randomUUID();
 
             // when
-            alphaSdk.playerConnect(playerId1);
-            alphaSdk.playerConnect(playerId2);
-            alphaSdk.playerConnect(playerId3);
+            alphaSdk.playerConnect(playerId1).join();
+            alphaSdk.playerConnect(playerId2).join();
+            alphaSdk.playerConnect(playerId3).join();
 
             // then
             Assertions.assertEquals(3, alphaSdk.connectedPlayers().join().size());
