@@ -1,6 +1,7 @@
 package net.justchunks.agones.client;
 
 import agones.dev.sdk.Sdk.GameServer;
+import io.grpc.stub.StreamObserver;
 import net.justchunks.agones.client.AgonesSdk.Alpha;
 import net.justchunks.agones.client.AgonesSdk.Beta;
 import org.json.simple.JSONObject;
@@ -29,11 +30,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 
 import static net.justchunks.agones.client.AgonesSdk.METADATA_KEY_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
@@ -120,7 +122,7 @@ class GrpcAgonesSdkTest {
 
         // then
         Assertions.assertTrue(containsLogLine("Ready request has been received!"));
-        Assertions.assertEquals("Ready", sdk.gameServer().getStatus().getState());
+        Assertions.assertEquals("Ready", sdk.gameServer().join().getStatus().getState());
     }
 
     @Test
@@ -158,7 +160,7 @@ class GrpcAgonesSdkTest {
         // then
         String logLine = getLogLine("Reserve request has been received!").orElseThrow();
         JSONObject durationObject = (JSONObject) ((JSONObject) new JSONParser().parse(logLine)).get("duration");
-        Assertions.assertEquals("Reserved", sdk.gameServer().getStatus().getState());
+        Assertions.assertEquals("Reserved", sdk.gameServer().join().getStatus().getState());
         if (seconds == 0) {
             Assertions.assertNull(durationObject.get("seconds"));
         } else {
@@ -189,7 +191,7 @@ class GrpcAgonesSdkTest {
 
         // then
         Assertions.assertTrue(containsLogLine("Allocate request has been received!"));
-        Assertions.assertEquals("Allocated", sdk.gameServer().getStatus().getState());
+        Assertions.assertEquals("Allocated", sdk.gameServer().join().getStatus().getState());
     }
 
     @Test
@@ -207,7 +209,7 @@ class GrpcAgonesSdkTest {
 
         // then
         Assertions.assertTrue(containsLogLine("Shutdown request has been received!"));
-        Assertions.assertEquals("Shutdown", sdk.gameServer().getStatus().getState());
+        Assertions.assertEquals("Shutdown", sdk.gameServer().join().getStatus().getState());
     }
 
     @ParameterizedTest(name = "#label(\"{0}\", \"{1}\")")
@@ -227,7 +229,7 @@ class GrpcAgonesSdkTest {
         // then
         String logLine = getLogLine("Setting label").orElseThrow();
         JSONObject valuesObject = (JSONObject) ((JSONObject) new JSONParser().parse(logLine)).get("values");
-        GameServer gameServer = sdk.gameServer();
+        GameServer gameServer = sdk.gameServer().join();
         Assertions.assertEquals(key, valuesObject.get("key"));
         Assertions.assertTrue(gameServer.getObjectMeta().getLabelsMap().containsKey(METADATA_KEY_PREFIX + key));
         Assertions.assertEquals(value, valuesObject.get("value"));
@@ -259,7 +261,7 @@ class GrpcAgonesSdkTest {
         // then
         String logLine = getLogLine("Setting annotation").orElseThrow();
         JSONObject valuesObject = (JSONObject) ((JSONObject) new JSONParser().parse(logLine)).get("values");
-        GameServer gameServer = sdk.gameServer();
+        GameServer gameServer = sdk.gameServer().join();
         Assertions.assertEquals(key, valuesObject.get("key"));
         Assertions.assertTrue(gameServer.getObjectMeta().getAnnotationsMap().containsKey(METADATA_KEY_PREFIX + key));
         Assertions.assertEquals(value, valuesObject.get("value"));
@@ -278,7 +280,7 @@ class GrpcAgonesSdkTest {
     @DisplayName("Should get GameServer")
     void shouldGetGameServer() {
         // when
-        GameServer gameServer = sdk.gameServer();
+        GameServer gameServer = sdk.gameServer().join();
 
         // then
         Assertions.assertNotNull(gameServer);
@@ -289,7 +291,7 @@ class GrpcAgonesSdkTest {
     @DisplayName("Should not receive initial GameServer update")
     void shouldNotReceiveInitialUpdate() throws TimeoutException {
         // given
-        Consumer<GameServer> gameServerConsumer = (Consumer<GameServer>) mock(Consumer.class);
+        StreamObserver<GameServer> gameServerConsumer = (StreamObserver<GameServer>) mock(StreamObserver.class);
 
         // when
         sdk.watchGameServer(gameServerConsumer);
@@ -302,7 +304,9 @@ class GrpcAgonesSdkTest {
         );
 
         // then
-        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(0)).accept(any());
+        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(0)).onNext(any());
+        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(0)).onCompleted();
+        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(0)).onError(any());
     }
 
     @Test
@@ -312,7 +316,7 @@ class GrpcAgonesSdkTest {
         // given
         String labelKey = "valid_key";
         String labelValue = "valid_value";
-        Consumer<GameServer> gameServerConsumer = (Consumer<GameServer>) mock(Consumer.class);
+        StreamObserver<GameServer> gameServerConsumer = (StreamObserver<GameServer>) mock(StreamObserver.class);
         ArgumentCaptor<GameServer> captor = ArgumentCaptor.forClass(GameServer.class);
 
         // when
@@ -329,7 +333,7 @@ class GrpcAgonesSdkTest {
         sdk.label(labelKey, labelValue);
 
         // then
-        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS)).accept(captor.capture());
+        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS)).onNext(captor.capture());
         System.out.println(sdkContainer.getLogs());
         Map<String, String> labelMap = captor.getValue().getObjectMeta().getLabelsMap();
         Assertions.assertTrue(labelMap.containsKey(METADATA_KEY_PREFIX + labelKey));
@@ -475,8 +479,8 @@ class GrpcAgonesSdkTest {
             UUID playerId = UUID.randomUUID();
 
             // when, then
-            Assertions.assertTrue(alphaSdk.playerConnect(playerId));
-            Assertions.assertTrue(alphaSdk.isPlayerConnected(playerId));
+            Assertions.assertTrue(alphaSdk.playerConnect(playerId).join());
+            Assertions.assertTrue(alphaSdk.isPlayerConnected(playerId).join());
         }
 
         @Test
@@ -487,7 +491,7 @@ class GrpcAgonesSdkTest {
             UUID playerId = UUID.randomUUID();
 
             // when
-            alphaSdk.playerCapacity(0);
+            alphaSdk.playerCapacity(0).join();
 
             // wait
             logConsumer.waitUntil(
@@ -496,8 +500,14 @@ class GrpcAgonesSdkTest {
                 TimeUnit.MILLISECONDS
             );
 
-            // when, then
-            Assertions.assertThrows(IllegalStateException.class, () -> alphaSdk.playerConnect(playerId));
+            // when
+            CompletableFuture<Boolean> connectFuture = alphaSdk.playerConnect(playerId);
+
+            // then
+            Assertions.assertEquals(
+                IllegalStateException.class,
+                Assertions.assertThrows(CompletionException.class, connectFuture::join).getCause().getClass()
+            );
         }
 
         @Test
@@ -510,10 +520,13 @@ class GrpcAgonesSdkTest {
             // when
             sdk.close();
 
-            // when, then
+            // when
+            CompletableFuture<Boolean> connectFuture = alphaSdk.playerConnect(playerId);
+
+            // then
             Assertions.assertNotEquals(
                 IllegalStateException.class,
-                Assertions.assertThrows(Throwable.class, () -> alphaSdk.playerConnect(playerId)).getClass()
+                Assertions.assertThrows(CompletionException.class, connectFuture::join).getCause().getClass()
             );
         }
 
@@ -525,8 +538,8 @@ class GrpcAgonesSdkTest {
             UUID playerId = UUID.randomUUID();
 
             // when, then
-            Assertions.assertTrue(alphaSdk.playerConnect(playerId));
-            Assertions.assertFalse(alphaSdk.playerConnect(playerId));
+            Assertions.assertTrue(alphaSdk.playerConnect(playerId).join());
+            Assertions.assertFalse(alphaSdk.playerConnect(playerId).join());
         }
 
         @Test
@@ -547,10 +560,10 @@ class GrpcAgonesSdkTest {
             UUID playerId = UUID.randomUUID();
 
             // when
-            alphaSdk.playerConnect(playerId);
+            alphaSdk.playerConnect(playerId).join();
 
             // then
-            Assertions.assertTrue(alphaSdk.playerDisconnect(playerId));
+            Assertions.assertTrue(alphaSdk.playerDisconnect(playerId).join());
         }
 
         @Test
@@ -561,7 +574,7 @@ class GrpcAgonesSdkTest {
             UUID playerId = UUID.randomUUID();
 
             // when, then
-            Assertions.assertFalse(alphaSdk.playerDisconnect(playerId));
+            Assertions.assertFalse(alphaSdk.playerDisconnect(playerId).join());
         }
 
         @Test
@@ -581,7 +594,7 @@ class GrpcAgonesSdkTest {
             Alpha alphaSdk = sdk.alpha();
 
             // when, then
-            Assertions.assertEquals(0, alphaSdk.connectedPlayers().size());
+            Assertions.assertEquals(0, alphaSdk.connectedPlayers().join().size());
         }
 
         @Test
@@ -599,8 +612,8 @@ class GrpcAgonesSdkTest {
             alphaSdk.playerConnect(playerId3);
 
             // then
-            Assertions.assertEquals(3, alphaSdk.connectedPlayers().size());
-            List<UUID> connectedPlayers = alphaSdk.connectedPlayers();
+            Assertions.assertEquals(3, alphaSdk.connectedPlayers().join().size());
+            List<UUID> connectedPlayers = alphaSdk.connectedPlayers().join();
             Assertions.assertTrue(connectedPlayers.contains(playerId1));
             Assertions.assertTrue(connectedPlayers.contains(playerId2));
             Assertions.assertTrue(connectedPlayers.contains(playerId3));
@@ -614,10 +627,10 @@ class GrpcAgonesSdkTest {
             UUID playerId = UUID.randomUUID();
 
             // when
-            alphaSdk.playerConnect(playerId);
+            alphaSdk.playerConnect(playerId).join();
 
             // then
-            Assertions.assertTrue(alphaSdk.isPlayerConnected(playerId));
+            Assertions.assertTrue(alphaSdk.isPlayerConnected(playerId).join());
         }
 
         @Test
@@ -627,7 +640,7 @@ class GrpcAgonesSdkTest {
             Alpha alphaSdk = sdk.alpha();
 
             // when, then
-            Assertions.assertFalse(alphaSdk.isPlayerConnected(UUID.randomUUID()));
+            Assertions.assertFalse(alphaSdk.isPlayerConnected(UUID.randomUUID()).join());
         }
 
         @Test
@@ -647,7 +660,7 @@ class GrpcAgonesSdkTest {
             Alpha alphaSdk = sdk.alpha();
 
             // when
-            long playerCount = alphaSdk.playerCount();
+            long playerCount = alphaSdk.playerCount().join();
 
             // then
             Assertions.assertEquals(0L, playerCount);
@@ -658,12 +671,12 @@ class GrpcAgonesSdkTest {
         void shouldGetPlayerCount() {
             // given
             Alpha alphaSdk = sdk.alpha();
-            alphaSdk.playerConnect(UUID.randomUUID());
-            alphaSdk.playerConnect(UUID.randomUUID());
-            alphaSdk.playerConnect(UUID.randomUUID());
+            alphaSdk.playerConnect(UUID.randomUUID()).join();
+            alphaSdk.playerConnect(UUID.randomUUID()).join();
+            alphaSdk.playerConnect(UUID.randomUUID()).join();
 
             // when
-            long playerCount = alphaSdk.playerCount();
+            long playerCount = alphaSdk.playerCount().join();
 
             // then
             Assertions.assertEquals(3L, playerCount);
@@ -687,7 +700,7 @@ class GrpcAgonesSdkTest {
             );
 
             // then
-            Assertions.assertEquals(capacity, alphaSdk.playerCapacity());
+            Assertions.assertEquals(capacity, alphaSdk.playerCapacity().join());
         }
 
         @ParameterizedTest(name = "#playerCapacity({0})")
@@ -708,7 +721,7 @@ class GrpcAgonesSdkTest {
             Alpha alphaSdk = sdk.alpha();
 
             // when
-            long playerCapacity = alphaSdk.playerCapacity();
+            long playerCapacity = alphaSdk.playerCapacity().join();
 
             // then
             Assertions.assertEquals(64L, playerCapacity);

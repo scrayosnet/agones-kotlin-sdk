@@ -1,6 +1,8 @@
 package net.justchunks.agones.client;
 
 import agones.dev.sdk.Sdk.GameServer;
+import io.grpc.Context.CancellableContext;
+import io.grpc.stub.StreamObserver;
 import org.intellij.lang.annotations.Pattern;
 import org.intellij.lang.annotations.Subst;
 import org.jetbrains.annotations.Contract;
@@ -12,6 +14,7 @@ import org.jetbrains.annotations.Unmodifiable;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
@@ -50,10 +53,12 @@ import java.util.function.Consumer;
  * Komponente in den Zustand {@code Shutdown} versetzt wird, werden die Zustandsänderungen still verworfen. Da wir aber
  * ohnehin wenig externe Änderungen vornehmen, muss dieser Umstand nicht besonders beachtet werden.
  *
- * <p>Alle Schnittstellen ohne Rückgabetyp werden asynchron ausgeführt. Lediglich die Schnittstellen, die eine Rückgabe
- * liefern, die direkt verarbeitet werden muss, werden synchron (blocking) ausgeführt. Schnittstellen, die mit
- * {@link Consumer Callbacks} arbeiten, werden ebenfalls asynchron ausgeführt und erhalten ihre Rückgabe asynchron über
- * den entsprechenden {@link Consumer Callback}.
+ * <p>Alle Schnittstellen werden asynchron ausgeführt und geben so ihr Ergebnis (falls es eine Rückgabe gibt) innerhalb
+ * einer {@link CompletableFuture vervollständigbaren Zukunft} zurück. Schnittstellen, die mit {@link StreamObserver
+ * Observern} arbeiten, werden ebenfalls asynchron ausgeführt und erhalten ihre Rückgabe asynchron über den
+ * entsprechenden {@link StreamObserver Observer} (bzw. dessen {@link StreamObserver#onNext(Object)
+ * Next-Schnittstelle}). Fehler werden in den {@link CompletableFuture Futures} zurückgegeben oder an die {@link
+ * StreamObserver#onError(Throwable) Error-Schnittelle} des {@link StreamObserver Observers} gesendet.
  *
  * <p>Die Signaturen der Endpunkte des SDKs wurden teilweise geringfügig auf unsere Struktur angepasst, entsprechen aber
  * im Allgemeinen den offiziellen Schnittstellen. Das SDK wird immer kompatibel zu den offiziellen Empfehlungen gehalten
@@ -101,9 +106,14 @@ public interface AgonesSdk extends AutoCloseable {
      * werden, so kann ein Server mit dieser Schnittstelle auch jederzeit wieder in den anfänglichen Zustand
      * zurückversetzt werden, um sich erneut als Bereit zu markieren.
      *
+     * @return Eine {@link CompletableFuture vervollständigbare Zukunft}, die abgeschlossen wird, sobald der neue
+     *     Zustand an das externe Agones SDK übermittelt wurde oder ein Fehler dabei auftritt.
+     *
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#ready">Agones Dokumentation</a>
      */
-    void ready();
+    @NotNull
+    @Contract(value = " -> new")
+    CompletableFuture<Void> ready();
 
     /**
      * Teilt Agones mit, dass diese Instanz nach wie vor läuft und valide ist. Diese Mitteilung muss periodisch gesendet
@@ -111,9 +121,19 @@ public interface AgonesSdk extends AutoCloseable {
      * Intervall wird in der Konfiguration für Agones festgelegt und toleriert kurze Verzögerungen. Diese Meldungen sind
      * unabhängig vom gewöhnlichen Lifecycle und sollten daher von Anfang an versendet werden.
      *
+     * <p>Diese Methode existiert nur aus Gründen der Vollständigkeit. Normalerweise sollte am Anfang der Applikation
+     * einmal {@link #startHealthTask()} aufgerufen werden und mit dieser Methode nicht interagiert werden. So wird
+     * automatisch über einen optimierten Stream in regelmäßigen Abständen eine Mitteilung versendet und es muss keine
+     * eigene Logik für den periodischen Versand eingebaut werden.
+     *
+     * @return Eine {@link CompletableFuture vervollständigbare Zukunft}, die abgeschlossen wird, sobald die Mitteilung
+     *     an das externe Agones SDK übermittelt wurde oder ein Fehler dabei auftritt.
+     *
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#health">Agones Dokumentation</a>
      */
-    void health();
+    @NotNull
+    @Contract(value = " -> new")
+    CompletableFuture<Void> health();
 
     /**
      * Teilt Agones mit, dass diese Instanz für eine bestimmte Zeit in den Zustand {@code Reserved} versetzt werden
@@ -128,6 +148,9 @@ public interface AgonesSdk extends AutoCloseable {
      * @param seconds Die Dauer in Sekunden, für die diese Instanz in den Zustand {@code Reserved} versetzt werden soll,
      *                bevor sie zu {@code Ready} zurückfällt. Der Wert {@code 0} steht für eine unbegrenzte Dauer.
      *
+     * @return Eine {@link CompletableFuture vervollständigbare Zukunft}, die abgeschlossen wird, sobald der neue
+     *     Zustand an das externe Agones SDK übermittelt wurde oder ein Fehler dabei auftritt.
+     *
      * @throws IllegalArgumentException Falls die übergebenen Sekunden kleiner als {@code 0} und damit negativ sind, da
      *                                  hierdurch die Zeit vorgegeben wird, nach der der Status wieder auf den vorigen
      *                                  Zustand zurückgesetzt wird.
@@ -137,7 +160,9 @@ public interface AgonesSdk extends AutoCloseable {
      *     {@link #allocate()} aufrufen, um mitzuteilen, dass die Instanz nun Spieler hält.
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#reserveseconds">Agones Dokumentation</a>
      */
-    void reserve(@Range(from = 0, to = Long.MAX_VALUE) long seconds);
+    @NotNull
+    @Contract(value = "_ -> new")
+    CompletableFuture<Void> reserve(@Range(from = 0, to = Long.MAX_VALUE) long seconds);
 
     /**
      * Teilt Agones mit, dass diese Instanz beansprucht wurde und daher aktuell nicht für {@code GameServerAllocations}
@@ -145,21 +170,33 @@ public interface AgonesSdk extends AutoCloseable {
      * Aber da dies (im Zusammenspiel mit externen Systemen) nicht immer möglich ist, kann diese Schnittstelle in diesen
      * Fällen verwendet werden, um die Instanz manuell zuzuweisen.
      *
+     * @return Eine {@link CompletableFuture vervollständigbare Zukunft}, die abgeschlossen wird, sobald der neue
+     *     Zustand an das externe Agones SDK übermittelt wurde oder ein Fehler dabei auftritt.
+     *
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#allocate">Agones Dokumentation</a>
      */
-    void allocate();
+    @NotNull
+    @Contract(value = " -> new")
+    CompletableFuture<Void> allocate();
 
     /**
      * Teilt Agones mit, dass diese GameServer Instanz heruntergefahren werden kann. Der Zustand wird unmittelbar auf
      * {@code Shutdown} gesetzt und der Pod dieser Instanz wird gestoppt und gelöscht. Die eigentliche Instanz stößt das
      * Herunterfahren also nur durch diesen Aufruf an. Und diese Instanz wird anschließend dadurch heruntergefahren,
-     * dass der Pod bei der Terminierung ein {@code SIGTERM} Signal auslöst. Falls die Instanz zusätzlich zu diesem
-     * Aufruf auch schon das Herunterfahren beginnt, kann es zu unerwarteten Restarts kommen, bis der Pod tatsächlich
-     * terminiert wurde.
+     * dass der Pod bei der Terminierung ein {@code SIGTERM} Signal auslöst.
+     *
+     * <p>Diese Methode ist gegenüber einem normalen Shutdown (ala {@link System#exit(int)}) zu bevorzugen, da sie
+     * früher den Status innerhalb der {@link GameServer GameServer-Ressource} verändert und der Rest der Infrastruktur
+     * sich daher schon auf das Herunterfahren dieser Instanz vorbereiten können.
+     *
+     * @return Eine {@link CompletableFuture vervollständigbare Zukunft}, die abgeschlossen wird, sobald der neue
+     *     Zustand an das externe Agones SDK übermittelt wurde oder ein Fehler dabei auftritt.
      *
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#shutdown">Agones Dokumentation</a>
      */
-    void shutdown();
+    @NotNull
+    @Contract(value = " -> new")
+    CompletableFuture<Void> shutdown();
     //</editor-fold>
 
     //<editor-fold desc="metadata management">
@@ -174,12 +211,17 @@ public interface AgonesSdk extends AutoCloseable {
      * @param key   Der Schlüssel des Labels, das dieser Instanz neu zugewiesen werden soll.
      * @param value Der Wert des Labels, das dieser Instanz neu zugewiesen werden soll.
      *
+     * @return Eine {@link CompletableFuture vervollständigbare Zukunft}, die abgeschlossen wird, sobald der neue
+     *     Metadaten-Satz an das externe Agones SDK übermittelt wurde oder ein Fehler dabei auftritt.
+     *
      * @throws IllegalArgumentException Falls der Schlüssel nicht dem vorgegebenen Muster für Label-Namen entspricht und
      *                                  daher nicht für die GameServer-Ressource innerhalb von Kubernetes übernommen
      *                                  werden kann.
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#setlabelkey-value">Agones Dokumentation</a>
      */
-    void label(
+    @NotNull
+    @Contract(value = "_, _ -> new")
+    CompletableFuture<Void> label(
         @NotNull @NonNls @Subst("key") @Pattern("[a-z0-9A-Z]([a-z0-9A-Z_.-])*[a-z0-9A-Z]") String key,
         @NotNull String value
     );
@@ -193,12 +235,17 @@ public interface AgonesSdk extends AutoCloseable {
      * @param key   Der Schlüssel der Annotation, die dieser Instanz neu zugewiesen werden soll.
      * @param value Der Wert der Annotation, die dieser Instanz neu zugewiesen werden soll.
      *
+     * @return Eine {@link CompletableFuture vervollständigbare Zukunft}, die abgeschlossen wird, sobald der neue
+     *     Metadaten-Satz an das externe Agones SDK übermittelt wurde oder ein Fehler dabei auftritt.
+     *
      * @throws IllegalArgumentException Falls der Schlüssel nicht dem vorgegebenen Muster für Annotation-Namen
      *                                  entspricht und daher nicht für die GameServer-Ressource innerhalb von Kubernetes
      *                                  übernommen werden kann.
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#setannotationkey-value">Agones Dokumentation</a>
      */
-    void annotation(
+    @NotNull
+    @Contract(value = "_, _ -> new")
+    CompletableFuture<Void> annotation(
         @NotNull @NonNls @Subst("key") @Pattern("[a-z0-9A-Z]([a-z0-9A-Z_.-])*[a-z0-9A-Z]") String key,
         @NotNull String value
     );
@@ -212,35 +259,40 @@ public interface AgonesSdk extends AutoCloseable {
      * Zuweisung sowie die Konfiguration enthalten. Die Rückgabe entspricht garantiert immer dem, was durch diese SDK
      * gesetzt wurde, auch wenn der Wert noch nicht in der Kubernetes Ressource aktualisiert wurde.
      *
-     * @return Ein neuer, unveränderbarer {@link GameServer Informationssatz}, der die Daten der Ressource innerhalb von
-     *     Kubernetes enthält.
+     * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit den {@link GameServer Informationen der
+     *     GameServer-Ressource}, die abgeschlossen wird, sobald die Rückmeldung des externen Agones SDKs eingetroffen
+     *     ist.
      *
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#gameserver">Agones Dokumentation</a>
      */
     @NotNull
     @Contract(value = " -> new", pure = true)
-    GameServer gameServer();
+    CompletableFuture<@NotNull GameServer> gameServer();
 
     /**
-     * Registriert einen neuen {@link Consumer Callback} für die Verarbeitung von Änderung an der Ressource innerhalb
-     * von Kubernetes. Der Callback erhält also immer dann ein neues Element, wenn es eine Änderung an der Ressource
-     * gab. Es werden sowohl die Änderungen weitergeleitet, die direkt durch dieses SDK ausgelöst wurden, als auch
-     * externe Änderungen, die direkt an der Ressource vorgenommen wurden.
+     * Registriert einen neuen {@link StreamObserver Observer} für die Verarbeitung von Änderung an der Ressource
+     * innerhalb von Kubernetes. Der Callback erhält also immer dann ein neues Element, wenn es eine Änderung an der
+     * Ressource gab. Es werden sowohl die Änderungen weitergeleitet, die direkt durch dieses SDK ausgelöst wurden, als
+     * auch externe Änderungen, die direkt an der Ressource vorgenommen wurden.
      *
      * <p>Das erste Element wird direkt nach der Registrierung weitergeleitet und entspricht dem aktuellen Zustand der
      * Ressource (ohne das eine Änderung erfolgt ist). Der {@link Consumer Callback} wird asynchron ausgelöst und er
      * bleibt so lange registriert, wie es diese Instanz gibt. Es ist also nicht möglich den Stream zu deaktivieren.
      *
-     * @param callback Der {@link Consumer Callback}, der die fortlaufenden Änderungen an der Ressource innerhalb von
-     *                 Kubernetes verarbeitet.
+     * <p>Um den Stream schon vorher zu beenden, kann ein {@link CancellableContext beendbarer Kontext} verwendet
+     * werden, in dem dann diese Methode aufgerufen wird. Dadurch wird der Stream sauber geschlossen und an den {@link
+     * StreamObserver Observer} werden anschließend keine weiteren Elemente gesendet.
      *
-     * @throws NullPointerException Falls für den {@link Consumer Callback} {@code null} übergeben wird. Da die ganze
-     *                              Funktionsweise dieser Methode auf dem Callback basiert, ist ein Aufruf ohne Callback
-     *                              nicht im Sinne dieser Methode.
+     * @param observer Der {@link StreamObserver Observer}, der die fortlaufenden Änderungen an der Ressource innerhalb
+     *                 von Kubernetes verarbeitet.
+     *
+     * @throws NullPointerException Falls für den {@link StreamObserver Observer} {@code null} übergeben wird. Da die
+     *                              ganze Funktionsweise dieser Methode auf dem Callback basiert, ist ein Aufruf ohne
+     *                              Callback nicht im Sinne dieser Methode.
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#watchgameserverfunctiongameserver">Agones
      *     Dokumentation</a>
      */
-    void watchGameServer(@NotNull Consumer<@NotNull GameServer> callback);
+    void watchGameServer(@NotNull StreamObserver<@NotNull GameServer> observer);
     //</editor-fold>
 
     //<editor-fold desc="maintenance">
@@ -326,22 +378,28 @@ public interface AgonesSdk extends AutoCloseable {
          * nicht schon voll war. Die Rückgabe entspricht garantiert immer dem, was durch diese SDK gesetzt wurde, auch
          * wenn der Wert noch nicht in der Kubernetes Ressource aktualisiert wurde.
          *
+         * <p>Falls die {@link #playerCapacity() Spieler-Kapazität} dieser Instanz bereits erreicht wurde und der
+         * Spieler daher nicht hinzugefügt werden kann, bis andere Spieler die Instanz verlassen oder die Kapazität
+         * erhöht wird, wird eine {@link IllegalStateException} innerhalb der {@link CompletableFuture Future} abgelegt
+         * und kein Resultat ausgibt.
+         *
          * @param playerId Die {@link UUID einzigartige ID} des Spielers, der als aktueller Spieler dieser Instanz
          *                 hinzugefügt werden soll.
          *
-         * @return Ob dieser Spieler zuvor noch nicht in Spielerliste dieser Instanz war und daher erfolgreich
-         *     hinzugefügt werden konnte und so von nun an in der {@link #connectedPlayers() Spielerliste} und {@link
-         *     #playerCount() Spielerzahl} berücksichtigt wird.
+         * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit dem Status, ob dieser Spieler zuvor
+         *     noch nicht in Spielerliste dieser Instanz war und daher erfolgreich hinzugefügt werden konnte und so von
+         *     nun an in der {@link #connectedPlayers() Spielerliste} und {@link #playerCount() Spielerzahl}
+         *     berücksichtigt wird. Die {@link CompletableFuture Future} wird abgeschlossen, sobald das externe Agones
+         *     SDK den Spieler hinzugefügt hat oder ein Fehler dabei auftritt.
          *
-         * @throws NullPointerException  Falls für die {@link UUID einzigartige ID} {@code null} übergeben wird und
-         *                               entsprechend kein Spieler davon abgeleitet werden kann.
-         * @throws IllegalStateException Falls die {@link #playerCapacity() Spieler-Kapazität} dieser Instanz bereits
-         *                               erreicht wurde und der Spieler daher nicht hinzugefügt werden kann, bis andere
-         *                               Spieler die Instanz verlassen oder die Kapazität erhöht wird.
+         * @throws NullPointerException Falls für die {@link UUID einzigartige ID} {@code null} übergeben wird und
+         *                              entsprechend kein Spieler davon abgeleitet werden kann.
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphaplayerconnectplayerid">Agones
          *     Dokumentation</a>
          */
-        boolean playerConnect(@NotNull UUID playerId);
+        @NotNull
+        @Contract(value = "_ -> new")
+        CompletableFuture<@NotNull Boolean> playerConnect(@NotNull UUID playerId);
 
         /**
          * Meldet einen Spieler mit einer bestimmten {@link UUID einzigartigen ID} von der Spielerliste dieser Instanz
@@ -353,16 +411,20 @@ public interface AgonesSdk extends AutoCloseable {
          * @param playerId Die {@link UUID einzigartige ID} des Spielers, der als aktueller Spieler dieser Instanz
          *                 entfernt werden soll.
          *
-         * @return Ob dieser Spieler zuvor in der Spielerliste dieser Instanz war und daher erfolgreich entfernt werden
-         *     konnte und so von nun an nicht mehr in der {@link #connectedPlayers() Spielerliste} und {@link
-         *     #playerCount() Spielerzahl} berücksichtigt wird.
+         * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit dem Status, ob dieser Spieler zuvor in
+         *     der Spielerliste dieser Instanz war und daher erfolgreich entfernt werden konnte und so von nun an nicht
+         *     mehr in der {@link #connectedPlayers() Spielerliste} und {@link #playerCount() Spielerzahl}
+         *     berücksichtigt wird. Die {@link CompletableFuture Future} wird abgeschlossen, sobald das externe Agones
+         *     SDK den Spieler entfernt hat oder Fehler dabei auftritt.
          *
          * @throws NullPointerException Falls für die {@link UUID einzigartige ID} {@code null} übergeben wird und
          *                              entsprechend kein Spieler davon abgeleitet werden kann.
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphaplayerdisconnectplayerid">Agones
          *     Dokumentation</a>
          */
-        boolean playerDisconnect(@NotNull UUID playerId);
+        @NotNull
+        @Contract(value = "_ -> new")
+        CompletableFuture<@NotNull Boolean> playerDisconnect(@NotNull UUID playerId);
         //</editor-fold>
 
         //<editor-fold desc="player tracking: registry">
@@ -371,18 +433,17 @@ public interface AgonesSdk extends AutoCloseable {
          * Ermittelt die {@link UUID einzigartigen IDs} der aktuellen Spieler, die dieser Instanz zugeordnet werden. Es
          * werden nur die Spieler zurückgegeben, die auch tatsächlich an dem Spiel teilnehmen. Zuschauer werden also
          * ignoriert. Die Rückgabe entspricht garantiert immer dem, was durch diese SDK gesetzt wurde, auch wenn der
-         * Wert noch nicht in der Kubernetes Ressource aktualisiert wurde.
          *
-         * @return Eine neue, unveränderbare {@link List Liste} der {@link UUID einzigartigen IDs} der Spieler, die
-         *     aktuell dieser Instanz zugeordnet sind.
+         * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit einer neuen, unveränderbaren {@link
+         *     List Liste} der {@link UUID einzigartigen IDs} der Spieler, die aktuell dieser Instanz zugeordnet sind,
+         *     die abgeschlossen wird, sobald die Rückmeldung des externen Agones SDKs eingetroffen ist.
          *
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphagetconnectedplayers">Agones
          *     Dokumentation</a>
          */
         @NotNull
-        @Unmodifiable
         @Contract(value = " -> new", pure = true)
-        List<@NotNull UUID> connectedPlayers();
+        CompletableFuture<@NotNull @Unmodifiable List<@NotNull UUID>> connectedPlayers();
 
         /**
          * Ermittelt, ob sich ein Spieler mit einer bestimmten {@link UUID einzigartigen ID} aktuell in der Spielerliste
@@ -393,15 +454,18 @@ public interface AgonesSdk extends AutoCloseable {
          * @param playerId Die {@link UUID einzigartige ID} des Spielers, für den geprüft werden soll, ob er sich
          *                 aktuell in der Spielerliste dieser Instanz befindet.
          *
-         * @return Ob der übergebene Spieler sich aktuell in der Spielerliste dieser Instanz befindet.
+         * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit dem Status, ob der übergebene Spieler
+         *     sich aktuell in der Spielerliste dieser Instanz befindet, die abgeschlossen wird, sobald die Rückmeldung
+         *     des externen Agones SDKs eingetroffen ist.
          *
          * @throws NullPointerException Falls für die {@link UUID einzigartige ID} {@code null} übergeben wird und
          *                              entsprechend kein Spieler davon abgeleitet werden kann.
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphaisplayerconnectedplayerid">Agones
          *     Dokumentation</a>
          */
-        @Contract(pure = true)
-        boolean isPlayerConnected(@NotNull UUID playerId);
+        @NotNull
+        @Contract(value = "_ -> new", pure = true)
+        CompletableFuture<@NotNull Boolean> isPlayerConnected(@NotNull UUID playerId);
         //</editor-fold>
 
         //<editor-fold desc="player tracking: stats">
@@ -412,13 +476,15 @@ public interface AgonesSdk extends AutoCloseable {
          * garantiert immer dem, was durch diese SDK gesetzt wurde, auch wenn der Wert noch nicht in der Kubernetes
          * Ressource aktualisiert wurde.
          *
-         * @return Die aktuelle Anzahl der sich gleichzeitig auf dieser Instanz befindlichen Spieler.
+         * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit der aktuellen Anzahl der sich
+         *     gleichzeitig auf dieser Instanz befindlichen Spieler, die abgeschlossen wird, sobald die Rückmeldung des
+         *     externen Agones SDKs eingetroffen ist.
          *
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphagetplayercount">Agones Dokumentation</a>
          */
-        @Contract(pure = true)
-        @Range(from = 0, to = Long.MAX_VALUE)
-        long playerCount();
+        @NotNull
+        @Contract(value = " -> new", pure = true)
+        CompletableFuture<@NotNull @Range(from = 0, to = Long.MAX_VALUE) Long> playerCount();
 
         /**
          * Ermittelt die aktuell geltende Kapazität für die Anzahl gleichzeitiger Spieler auf dieser Instanz. Über diese
@@ -426,15 +492,17 @@ public interface AgonesSdk extends AutoCloseable {
          * garantiert immer dem, was durch dieses SDK gesetzt wurde, auch wenn der Wert noch nicht in der Kubernetes
          * Ressource aktualisiert wurde.
          *
-         * @return Die aktuelle Kapazität, die für die gleichzeitigen Spieler auf dieser Instanz gilt. Der Wert {@code
-         *     0} steht dafür, dass kein einziger Spieler die Instanz betreten kann.
+         * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit der aktuellen Kapazität, die für die
+         *     gleichzeitigen Spieler auf dieser Instanz gilt. Der Wert {@code 0} steht dafür, dass kein einziger
+         *     Spieler die Instanz betreten kann. Sie wird abgeschlossen, wenn die Rückmeldung des externen Agones SDKs
+         *     eingetroffen ist.
          *
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphagetplayercapacity">Agones
          *     Dokumentation</a>
          */
-        @Contract(pure = true)
-        @Range(from = 0, to = Long.MAX_VALUE)
-        long playerCapacity();
+        @NotNull
+        @Contract(value = " -> new", pure = true)
+        CompletableFuture<@NotNull @Range(from = 0, to = Long.MAX_VALUE) Long> playerCapacity();
 
         /**
          * Setzt eine neue Kapazität für die Anzahl gleichzeitiger Spieler auf dieser Instanz. Das Limit wird nicht
@@ -445,11 +513,16 @@ public interface AgonesSdk extends AutoCloseable {
          * @param capacity Die neue Kapazität, die für die gleichzeitigen Spieler auf dieser Instanz gelten soll. Der
          *                 Wert {@code 0} steht dafür, dass kein einziger Spieler die Instanz betreten kann.
          *
+         * @return Eine {@link CompletableFuture vervollständigbare Zukunft}, die abgeschlossen wird, sobald die neue
+         *     Kapazität an das externen Agones SDKs übermittelt wurde oder ein Fehler dabei auftritt.
+         *
          * @throws IllegalArgumentException Falls für die Spieler-Kapazität eine negative Zahl angegeben wird.
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphasetplayercapacitycount">Agones
          *     Dokumentation</a>
          */
-        void playerCapacity(@Range(from = 0, to = Long.MAX_VALUE) long capacity);
+        @NotNull
+        @Contract(value = "_ -> new")
+        CompletableFuture<Void> playerCapacity(@Range(from = 0, to = Long.MAX_VALUE) long capacity);
         //</editor-fold>
     }
 

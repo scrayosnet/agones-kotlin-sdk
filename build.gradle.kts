@@ -37,6 +37,9 @@ dependencies {
     implementation("io.grpc:grpc-netty-shaded:1.43.1")
     implementation("io.grpc:grpc-protobuf:1.43.1")
     implementation("io.grpc:grpc-stub:1.43.1")
+    // https://github.com/lukas-krecan/future-converter
+    // it was recommended against using ListenableFuture for new APIs: https://groups.google.com/g/guava-discuss/c/Relx9uIIpUg/m/1VT1ii9bCwAJ
+    implementation("net.javacrumbs.future-converter:future-converter-java8-guava:1.2.0")
 
     // classpaths we only compile against (are provided or unnecessary in runtime)
     compileOnly("org.apache.logging.log4j:log4j-api:2.17.1")

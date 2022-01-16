@@ -1,22 +1,24 @@
 package net.justchunks.agones.client;
 
 import agones.dev.sdk.SDKGrpc;
-import agones.dev.sdk.SDKGrpc.SDKBlockingStub;
+import agones.dev.sdk.SDKGrpc.SDKFutureStub;
 import agones.dev.sdk.SDKGrpc.SDKStub;
 import agones.dev.sdk.Sdk.Duration;
 import agones.dev.sdk.Sdk.Empty;
 import agones.dev.sdk.Sdk.GameServer;
 import agones.dev.sdk.Sdk.KeyValue;
+import agones.dev.sdk.alpha.Alpha.Bool;
 import agones.dev.sdk.alpha.Alpha.Count;
 import agones.dev.sdk.alpha.Alpha.PlayerID;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import net.justchunks.agones.client.observer.CallbackStreamObserver;
+import net.javacrumbs.futureconverter.java8guava.FutureConverter;
 import net.justchunks.agones.client.observer.NoopStreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,10 +30,13 @@ import org.jetbrains.annotations.VisibleForTesting;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.regex.Pattern;
+
+import static net.javacrumbs.futureconverter.java8guava.FutureConverter.toCompletableFuture;
 
 /**
  * Eine {@link GrpcAgonesSdk} stellt eine gRPC-Implementation des {@link AgonesSdk Agones SDKs} dar. Die Implementation
@@ -94,12 +99,18 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     //</editor-fold>
 
     //<editor-fold desc="stubs">
-    /** Der asynchrone, nebenläufige Stub für die Kommunikation mit der externen Schnittstelle des Agones SDKs. */
+    /**
+     * Der asynchrone, nebenläufige {@link SDKStub Stub} für die Kommunikation mit der externen Schnittstelle von Open
+     * Match, der über {@link StreamObserver Stream-Observer} kontrolliert wird.
+     */
     @NotNull
-    private final SDKStub stub;
-    /** Der synchrone, blockende Stub für die Kommunikation mit der externen Schnittstelle des Agones SDKs. */
+    private final SDKStub asyncStub;
+    /**
+     * Der asynchrone, nebenläufige {@link SDKFutureStub Stub} für die Kommunikation mit der externen Schnittstelle von
+     * Open Match, der über {@link ListenableFuture Futures} kontrolliert wird.
+     */
     @NotNull
-    private final SDKBlockingStub blockingStub;
+    private final SDKFutureStub futureStub;
     //</editor-fold>
 
     //<editor-fold desc="sub-sdks">
@@ -163,9 +174,9 @@ public final class GrpcAgonesSdk implements AgonesSdk {
             .usePlaintext()
             .build();
 
-        // create the blocking and non-blocking stubs for the communication with agones
-        this.stub = SDKGrpc.newStub(channel);
-        this.blockingStub = SDKGrpc.newBlockingStub(channel);
+        // create the stubs for the communication with agones
+        this.asyncStub = SDKGrpc.newStub(channel);
+        this.futureStub = SDKGrpc.newFutureStub(channel);
 
         // create the sub-sdks for the other channels
         this.alphaSdk = new GrpcAlpha(channel);
@@ -175,29 +186,39 @@ public final class GrpcAgonesSdk implements AgonesSdk {
 
 
     //<editor-fold desc="implementation">
+    @NotNull
     @Override
-    public void ready() {
+    @Contract(value = " -> new")
+    public CompletableFuture<Void> ready() {
         // call the endpoint with an empty request and ignore the response
-        stub.ready(
-            Empty.getDefaultInstance(),
-            NoopStreamObserver.getInstance()
+        return toCompletableFuture(
+            futureStub.ready(Empty.getDefaultInstance())
+        ).thenApply(empty -> null);
+    }
+
+    @NotNull
+    @Override
+    @Contract(value = " -> new")
+    public CompletableFuture<Void> health() {
+        return CompletableFuture.runAsync(
+            () -> {
+                // open a new health ping stream (which does not send any health pings yet)
+                final StreamObserver<Empty> sendObserver = asyncStub.health(NoopStreamObserver.getInstance());
+
+                // send the actual health ping
+                sendObserver.onNext(Empty.getDefaultInstance());
+
+                // close the ping stream right away
+                sendObserver.onCompleted();
+            },
+            executorService
         );
     }
 
+    @NotNull
     @Override
-    public void health() {
-        // open a new health ping stream (which does not send any health pings yet)
-        final StreamObserver<Empty> sendObserver = stub.health(NoopStreamObserver.getInstance());
-
-        // send the actual health ping
-        sendObserver.onNext(Empty.getDefaultInstance());
-
-        // close the ping stream right away
-        sendObserver.onCompleted();
-    }
-
-    @Override
-    public void reserve(@Range(from = 0, to = Integer.MAX_VALUE) final long seconds) {
+    @Contract(value = "_ -> new")
+    public CompletableFuture<Void> reserve(@Range(from = 0, to = Integer.MAX_VALUE) final long seconds) {
         // check that the seconds are within the allowed bounds
         Preconditions.checkArgument(
             seconds >= 0,
@@ -206,34 +227,39 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         );
 
         // call the endpoint with the duration and ignore the response
-        stub.reserve(
-            Duration.newBuilder()
-                .setSeconds(seconds)
-                .build(),
-            NoopStreamObserver.getInstance()
-        );
+        return toCompletableFuture(
+            futureStub.reserve(
+                Duration.newBuilder()
+                    .setSeconds(seconds)
+                    .build()
+            )
+        ).thenApply(empty -> null);
     }
 
+    @NotNull
     @Override
-    public void allocate() {
+    @Contract(value = " -> new")
+    public CompletableFuture<Void> allocate() {
         // call the endpoint with an empty request and ignore the response
-        stub.allocate(
-            Empty.getDefaultInstance(),
-            NoopStreamObserver.getInstance()
-        );
+        return toCompletableFuture(
+            futureStub.allocate(Empty.getDefaultInstance())
+        ).thenApply(empty -> null);
     }
 
+    @NotNull
     @Override
-    public void shutdown() {
+    @Contract(value = " -> new")
+    public CompletableFuture<Void> shutdown() {
         // call the endpoint with an empty request and ignore the response
-        stub.shutdown(
-            Empty.getDefaultInstance(),
-            NoopStreamObserver.getInstance()
-        );
+        return toCompletableFuture(
+            futureStub.shutdown(Empty.getDefaultInstance())
+        ).thenApply(empty -> null);
     }
 
+    @NotNull
     @Override
-    public void label(@NotNull final String key, @NotNull final String value) {
+    @Contract(value = "_, _ -> new")
+    public CompletableFuture<Void> label(@NotNull final String key, @NotNull final String value) {
         // check that the label key is allowed within kubernetes
         Preconditions.checkArgument(
             META_KEY_PATTERN.matcher(key).matches(),
@@ -242,17 +268,18 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         );
 
         // call the endpoint with the mapping and ignore the response
-        stub.setLabel(
+        return toCompletableFuture(futureStub.setLabel(
             KeyValue.newBuilder()
                 .setKey(key)
                 .setValue(value)
-                .build(),
-            NoopStreamObserver.getInstance()
-        );
+                .build()
+        )).thenApply(empty -> null);
     }
 
+    @NotNull
     @Override
-    public void annotation(@NotNull final String key, @NotNull final String value) {
+    @Contract(value = "_, _ -> new")
+    public CompletableFuture<Void> annotation(@NotNull final String key, @NotNull final String value) {
         // check that the label key is allowed within kubernetes
         Preconditions.checkArgument(
             META_KEY_PATTERN.matcher(key).matches(),
@@ -261,35 +288,34 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         );
 
         // call the endpoint with the mapping and ignore the response
-        stub.setAnnotation(
+        return toCompletableFuture(futureStub.setAnnotation(
             KeyValue.newBuilder()
                 .setKey(key)
                 .setValue(value)
-                .build(),
-            NoopStreamObserver.getInstance()
-        );
+                .build()
+        )).thenApply(empty -> null);
     }
 
     @NotNull
     @Override
     @Contract(value = " -> new", pure = true)
-    public GameServer gameServer() {
+    public CompletableFuture<GameServer> gameServer() {
         // call the endpoint (synchronously) with an empty request and return the response
-        return blockingStub.getGameServer(Empty.getDefaultInstance());
+        return toCompletableFuture(futureStub.getGameServer(Empty.getDefaultInstance()));
     }
 
     @Override
-    public void watchGameServer(@NotNull final Consumer<@NotNull GameServer> callback) {
+    public void watchGameServer(@NotNull final StreamObserver<@NotNull GameServer> observer) {
         // check that the provided callback actually exists
         Preconditions.checkNotNull(
-            callback,
-            "The supplied callback cannot be null!"
+            observer,
+            "The supplied observer cannot be null!"
         );
 
         // call the endpoint with an empty request and use the callback to handle responses
-        stub.watchGameServer(
+        asyncStub.watchGameServer(
             Empty.getDefaultInstance(),
-            CallbackStreamObserver.getInstance(callback)
+            observer
         );
     }
 
@@ -302,7 +328,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         );
 
         // assign a new async stream to send the health pings in
-        healthTaskStream = stub.health(NoopStreamObserver.getInstance());
+        healthTaskStream = asyncStub.health(NoopStreamObserver.getInstance());
 
         // register the task to periodically send pings
         executorService.scheduleAtFixedRate(
@@ -394,12 +420,18 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     public static final class GrpcAlpha implements Alpha {
 
         //<editor-fold desc="LOCAL FIELDS">
-        /** Der asynchrone, nebenläufige Stub für die Kommunikation mit der externen Schnittstelle des Agones SDKs. */
+        /**
+         * Der asynchrone, nebenläufige {@link agones.dev.sdk.alpha.SDKGrpc.SDKStub Stub} für die Kommunikation mit der
+         * externen Schnittstelle von Open Match, der über {@link StreamObserver Stream-Observer} kontrolliert wird.
+         */
         @NotNull
-        private final agones.dev.sdk.alpha.SDKGrpc.SDKStub stub;
-        /** Der synchrone, blockende Stub für die Kommunikation mit der externen Schnittstelle des Agones SDKs. */
+        private final agones.dev.sdk.alpha.SDKGrpc.SDKStub asyncStub;
+        /**
+         * Der asynchrone, nebenläufige {@link agones.dev.sdk.alpha.SDKGrpc.SDKFutureStub Stub} für die Kommunikation
+         * mit der externen Schnittstelle von Open Match, der über {@link ListenableFuture Futures} kontrolliert wird.
+         */
         @NotNull
-        private final agones.dev.sdk.alpha.SDKGrpc.SDKBlockingStub blockingStub;
+        private final agones.dev.sdk.alpha.SDKGrpc.SDKFutureStub futureStub;
         //</editor-fold>
 
 
@@ -416,77 +448,54 @@ public final class GrpcAgonesSdk implements AgonesSdk {
          */
         @Contract(pure = true)
         public GrpcAlpha(@NotNull final Channel channel) {
-            // create the blocking and non-blocking stubs for the communication with agones
-            stub = agones.dev.sdk.alpha.SDKGrpc.newStub(channel);
-            blockingStub = agones.dev.sdk.alpha.SDKGrpc.newBlockingStub(channel);
+            // create the stubs for the communication with agones
+            asyncStub = agones.dev.sdk.alpha.SDKGrpc.newStub(channel);
+            futureStub = agones.dev.sdk.alpha.SDKGrpc.newFutureStub(channel);
         }
         //</editor-fold>
 
 
         //<editor-fold desc="implementation">
+        @NotNull
         @Override
-        public boolean playerConnect(@NotNull final UUID playerId) {
+        @Contract(value = "_ -> new")
+        public CompletableFuture<@NotNull Boolean> playerConnect(@NotNull final UUID playerId) {
             // check that there was actually player ID supplied
             Preconditions.checkNotNull(
                 playerId,
                 "The supplied player ID cannot be null!"
             );
 
-            // wrap in try-catch because capacity-overflow throws exception
-            try {
-                return blockingStub.playerConnect(
-                    PlayerID.newBuilder()
-                        .setPlayerID(playerId.toString())
-                        .build()
-                ).getBool();
-            } catch (final StatusRuntimeException ex) {
-                // get the status for this exception
-                final Status state = ex.getStatus();
-
-                // if the player limit is exhausted, convert the exception
-                if (state.getCode().value() == 2 && state.getDescription().equals("Players are already at capacity")) {
-                    throw new IllegalStateException("Player capacity is exhausted!");
-                }
-
-                // in any other case, rethrow the original exception
-                throw ex;
-            }
-        }
-
-        @Override
-        public boolean playerDisconnect(@NotNull final UUID playerId) {
-            // check that there was actually player ID supplied
-            Preconditions.checkNotNull(
-                playerId,
-                "The supplied player ID cannot be null!"
-            );
-
-            // call the endpoint with the player ID and return the response
-            return blockingStub.playerDisconnect(
+            // capacity overflows throw exceptions, so we need to handle them
+            return toCompletableFuture(futureStub.playerConnect(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId.toString())
                     .build()
-            ).getBool();
+            )).handle((result, exception) -> {
+                if (exception != null) {
+                    if (exception instanceof StatusRuntimeException ex) {
+                        // get the status for this exception
+                        final Status state = ex.getStatus();
+
+                        // if the player limit is exhausted, convert the exception
+                        if (state.getCode().value() == 2 && state.getDescription().equals("Players are already at capacity")) {
+                            throw new IllegalStateException("Player capacity is exhausted!");
+                        }
+                    }
+
+                    // in any other case, rethrow the original exception
+                    throw new CompletionException(exception);
+                }
+
+                // convert the result if there was no exception
+                return result.getBool();
+            });
         }
 
         @NotNull
         @Override
-        @Unmodifiable
-        @Contract(value = " -> new", pure = true)
-        public List<@NotNull UUID> connectedPlayers() {
-            // call the endpoint with an empty request and return the mapped response
-            return blockingStub.getConnectedPlayers(
-                    agones.dev.sdk.alpha.Alpha.Empty.getDefaultInstance()
-                )
-                .getListList()
-                .stream()
-                .map(UUID::fromString)
-                .toList();
-        }
-
-        @Override
-        @Contract(pure = true)
-        public boolean isPlayerConnected(@NotNull final UUID playerId) {
+        @Contract(value = "_ -> new")
+        public CompletableFuture<@NotNull Boolean> playerDisconnect(@NotNull final UUID playerId) {
             // check that there was actually player ID supplied
             Preconditions.checkNotNull(
                 playerId,
@@ -494,35 +503,65 @@ public final class GrpcAgonesSdk implements AgonesSdk {
             );
 
             // call the endpoint with the player ID and return the response
-            return blockingStub.isPlayerConnected(
+            return toCompletableFuture(futureStub.playerDisconnect(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId.toString())
                     .build()
-            ).getBool();
+            )).thenApply(Bool::getBool);
         }
 
+        @NotNull
         @Override
-        @Contract(pure = true)
-        @Range(from = 0, to = Long.MAX_VALUE)
-        public long playerCount() {
-            // call the endpoint with an empty request and return the response
-            return blockingStub.getPlayerCount(
+        @Contract(value = " -> new", pure = true)
+        public CompletableFuture<@NotNull @Unmodifiable List<@NotNull UUID>> connectedPlayers() {
+            // call the endpoint with an empty request and return the mapped response
+            return toCompletableFuture(futureStub.getConnectedPlayers(
                 agones.dev.sdk.alpha.Alpha.Empty.getDefaultInstance()
-            ).getCount();
+            )).thenApply(list -> list.getListList().stream().map(UUID::fromString).toList());
         }
 
+        @NotNull
         @Override
-        @Contract(pure = true)
-        @Range(from = 0, to = Long.MAX_VALUE)
-        public long playerCapacity() {
+        @Contract(value = "_ -> new", pure = true)
+        public CompletableFuture<@NotNull Boolean> isPlayerConnected(@NotNull final UUID playerId) {
+            // check that there was actually player ID supplied
+            Preconditions.checkNotNull(
+                playerId,
+                "The supplied player ID cannot be null!"
+            );
+
+            // call the endpoint with the player ID and return the response
+            return toCompletableFuture(futureStub.isPlayerConnected(
+                PlayerID.newBuilder()
+                    .setPlayerID(playerId.toString())
+                    .build()
+            )).thenApply(Bool::getBool);
+        }
+
+        @NotNull
+        @Override
+        @Contract(value = " -> new", pure = true)
+        public CompletableFuture<@NotNull @Range(from = 0, to = Long.MAX_VALUE) Long> playerCount() {
             // call the endpoint with an empty request and return the response
-            return blockingStub.getPlayerCapacity(
+            return toCompletableFuture(futureStub.getPlayerCount(
                 agones.dev.sdk.alpha.Alpha.Empty.getDefaultInstance()
-            ).getCount();
+            )).thenApply(Count::getCount);
         }
 
+        @NotNull
         @Override
-        public void playerCapacity(@Range(from = 0, to = Long.MAX_VALUE) final long capacity) {
+        @Contract(value = " -> new", pure = true)
+        public CompletableFuture<@NotNull @Range(from = 0, to = Long.MAX_VALUE) Long> playerCapacity() {
+            // call the endpoint with an empty request and return the response
+            return toCompletableFuture(futureStub.getPlayerCapacity(
+                agones.dev.sdk.alpha.Alpha.Empty.getDefaultInstance()
+            )).thenApply(Count::getCount);
+        }
+
+        @NotNull
+        @Override
+        @Contract(value = "_ -> new")
+        public CompletableFuture<Void> playerCapacity(@Range(from = 0, to = Long.MAX_VALUE) final long capacity) {
             // check that the capacity is within allowed bounds
             Preconditions.checkArgument(
                 capacity >= 0,
@@ -531,12 +570,11 @@ public final class GrpcAgonesSdk implements AgonesSdk {
             );
 
             // call the endpoint with the count and ignore the response
-            stub.setPlayerCapacity(
+            return FutureConverter.toCompletableFuture(futureStub.setPlayerCapacity(
                 Count.newBuilder()
                     .setCount(capacity)
-                    .build(),
-                NoopStreamObserver.getInstance()
-            );
+                    .build()
+            )).thenApply(empty -> null);
         }
         //</editor-fold>
     }
@@ -550,12 +588,18 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     public static final class GrpcBeta implements Beta {
 
         //<editor-fold desc="LOCAL FIELDS">
-        /** Der asynchrone, nebenläufige Stub für die Kommunikation mit der externen Schnittstelle des Agones SDKs. */
+        /**
+         * Der asynchrone, nebenläufige {@link agones.dev.sdk.beta.SDKGrpc.SDKStub Stub} für die Kommunikation mit der
+         * externen Schnittstelle von Open Match, der über {@link StreamObserver Stream-Observer} kontrolliert wird.
+         */
         @NotNull
-        private final agones.dev.sdk.beta.SDKGrpc.SDKStub stub;
-        /** Der synchrone, blockende Stub für die Kommunikation mit der externen Schnittstelle des Agones SDKs. */
+        private final agones.dev.sdk.beta.SDKGrpc.SDKStub asyncStub;
+        /**
+         * Der asynchrone, nebenläufige {@link agones.dev.sdk.beta.SDKGrpc.SDKFutureStub Stub} für die Kommunikation mit
+         * der externen Schnittstelle von Open Match, der über {@link ListenableFuture Futures} kontrolliert wird.
+         */
         @NotNull
-        private final agones.dev.sdk.beta.SDKGrpc.SDKBlockingStub blockingStub;
+        private final agones.dev.sdk.beta.SDKGrpc.SDKFutureStub futureStub;
         //</editor-fold>
 
 
@@ -572,9 +616,9 @@ public final class GrpcAgonesSdk implements AgonesSdk {
          */
         @Contract(pure = true)
         public GrpcBeta(@NotNull final Channel channel) {
-            // create the blocking and non-blocking stubs for the communication with agones
-            stub = agones.dev.sdk.beta.SDKGrpc.newStub(channel);
-            blockingStub = agones.dev.sdk.beta.SDKGrpc.newBlockingStub(channel);
+            // create the stubs for the communication with agones
+            asyncStub = agones.dev.sdk.beta.SDKGrpc.newStub(channel);
+            futureStub = agones.dev.sdk.beta.SDKGrpc.newFutureStub(channel);
         }
         //</editor-fold>
     }
