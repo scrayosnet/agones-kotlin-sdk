@@ -370,8 +370,17 @@ class GrpcAgonesSdkTest {
 
         // when
         sdk.label(labelKey, labelValue).join();
+
+        // wait
+        logConsumer.waitUntil(
+            frame -> frame.getUtf8String().contains("Gameserver update received"),
+            WAIT_TIMEOUT_MILLIS,
+            TimeUnit.MILLISECONDS
+        );
+
+        // when 2
         operation.cancel();
-        sdk.label(labelKey + "c", labelValue).join();
+        sdk.label(labelKey + "a", labelValue).join();
 
         // then
         verify(gameServerConsumer, Mockito.after(SHORT_WAIT_TIMEOUT_MILLIS).times(1)).onNext(any());
