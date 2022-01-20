@@ -1,9 +1,11 @@
 package net.justchunks.agones.client;
 
 import agones.dev.sdk.Sdk.GameServer;
-import io.grpc.stub.StreamObserver;
+import io.grpc.StatusRuntimeException;
 import net.justchunks.agones.client.AgonesSdk.Alpha;
 import net.justchunks.agones.client.AgonesSdk.Beta;
+import net.justchunks.client.base.observer.StreamConsumer;
+import net.justchunks.client.base.operation.CancellableOperation;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -19,6 +21,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.WaitingConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -37,6 +40,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static net.justchunks.agones.client.AgonesSdk.HEALTH_PING_INTERVAL;
 import static net.justchunks.agones.client.AgonesSdk.METADATA_KEY_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -44,6 +48,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @Testcontainers
 @SuppressWarnings({"PatternValidation", "ConstantConditions", "ResultOfMethodCallIgnored"})
@@ -59,7 +64,7 @@ class GrpcAgonesSdkTest {
 
     @Container
     private GenericContainer<?> sdkContainer = new GenericContainer<>(
-        DockerImageName.parse("gcr.io/agones-images/agones-sdk:1.19.0")
+        DockerImageName.parse("gcr.io/agones-images/agones-sdk:1.20.0")
     )
         .withCommand(
             "--local",
@@ -290,8 +295,10 @@ class GrpcAgonesSdkTest {
     @SuppressWarnings("unchecked")
     @DisplayName("Should not receive initial GameServer update")
     void shouldNotReceiveInitialUpdate() throws TimeoutException {
+        // this test will be rectified once https://github.com/googleforgames/agones/issues/2437 is fixed
+        // then the other counts should also be updated
         // given
-        StreamObserver<GameServer> gameServerConsumer = (StreamObserver<GameServer>) mock(StreamObserver.class);
+        StreamConsumer<GameServer> gameServerConsumer = (StreamConsumer<GameServer>) mock(StreamConsumer.class);
 
         // when
         sdk.watchGameServer(gameServerConsumer);
@@ -316,7 +323,7 @@ class GrpcAgonesSdkTest {
         // given
         String labelKey = "valid_key";
         String labelValue = "valid_value";
-        StreamObserver<GameServer> gameServerConsumer = (StreamObserver<GameServer>) mock(StreamObserver.class);
+        StreamConsumer<GameServer> gameServerConsumer = (StreamConsumer<GameServer>) mock(StreamConsumer.class);
         ArgumentCaptor<GameServer> captor = ArgumentCaptor.forClass(GameServer.class);
 
         // when
@@ -330,14 +337,103 @@ class GrpcAgonesSdkTest {
         );
 
         // when
-        sdk.label(labelKey, labelValue);
+        sdk.label(labelKey, labelValue).join();
 
         // then
         verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS)).onNext(captor.capture());
-        System.out.println(sdkContainer.getLogs());
         Map<String, String> labelMap = captor.getValue().getObjectMeta().getLabelsMap();
         Assertions.assertTrue(labelMap.containsKey(METADATA_KEY_PREFIX + labelKey));
         Assertions.assertTrue(labelMap.containsValue(labelValue));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("Should cancel GameServer watch (through operation)")
+    void shouldCancelWatchExternal() throws TimeoutException {
+        // given
+        String labelKey = "valid_key";
+        String labelValue = "valid_value";
+        StreamConsumer<GameServer> gameServerConsumer = (StreamConsumer<GameServer>) mock(StreamConsumer.class);
+        when(gameServerConsumer.onNext(any())).thenReturn(true);
+
+        // when
+        CancellableOperation operation = sdk.watchGameServer(gameServerConsumer);
+
+        // wait
+        logConsumer.waitUntil(
+            frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
+            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            TimeUnit.MILLISECONDS
+        );
+
+        // when
+        sdk.label(labelKey, labelValue).join();
+        sdk.label(labelKey + "a", labelValue).join();
+        sdk.label(labelKey + "b", labelValue).join();
+        operation.cancel();
+        sdk.label(labelKey + "c", labelValue).join();
+        sdk.label(labelKey + "d", labelValue).join();
+        sdk.label(labelKey + "e", labelValue).join();
+
+        // then
+        verify(gameServerConsumer, Mockito.after(5_000L).times(3)).onNext(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("Should cancel GameServer watch (through onNext())")
+    void shouldCancelWatchInternal() throws TimeoutException {
+        // given
+        String labelKey = "valid_key";
+        String labelValue = "valid_value";
+        StreamConsumer<GameServer> gameServerConsumer = (StreamConsumer<GameServer>) mock(StreamConsumer.class);
+        when(gameServerConsumer.onNext(any())).thenReturn(true, true, false);
+
+        // when
+        CancellableOperation operation = sdk.watchGameServer(gameServerConsumer);
+
+        // wait
+        logConsumer.waitUntil(
+            frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
+            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            TimeUnit.MILLISECONDS
+        );
+
+        // when
+        sdk.label(labelKey, labelValue).join();
+        sdk.label(labelKey + "a", labelValue).join();
+        sdk.label(labelKey + "b", labelValue).join();
+        sdk.label(labelKey + "c", labelValue).join();
+        sdk.label(labelKey + "d", labelValue).join();
+        sdk.label(labelKey + "e", labelValue).join();
+
+        // then
+        verify(gameServerConsumer, Mockito.after(5_000L).times(3)).onNext(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    @DisplayName("Should cancel GameServer watch (on close())")
+    void shouldCancelWatchClose() throws TimeoutException {
+        // given
+        StreamConsumer<GameServer> gameServerConsumer = (StreamConsumer<GameServer>) mock(StreamConsumer.class);
+        when(gameServerConsumer.onNext(any())).thenReturn(true);
+
+        // when
+        CancellableOperation operation = sdk.watchGameServer(gameServerConsumer);
+
+        // wait
+        logConsumer.waitUntil(
+            frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
+            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            TimeUnit.MILLISECONDS
+        );
+
+        // when
+        sdk.close();
+
+        // then
+        verify(gameServerConsumer, timeout(HEALTH_PING_INTERVAL.toMillis()).times(1)).onError(any());
     }
 
     @Test
@@ -389,12 +485,22 @@ class GrpcAgonesSdkTest {
     }
 
     @Test
-    @DisplayName("Health task should trigger health pings")
+    @DisplayName("Starting health task should throw ISE on duplicate")
     void shouldThrowOnDuplicateStartHealthTask() {
-        // when
+        // given
         sdk.startHealthTask();
 
-        // then
+        // when, then
+        Assertions.assertThrows(IllegalStateException.class, () -> sdk.startHealthTask());
+    }
+
+    @Test
+    @DisplayName("Starting health task should throw ISE on closed channel")
+    void shouldThrowOnStartHealthTaskAfterClose() {
+        // given
+        sdk.close();
+
+        // when, then
         Assertions.assertThrows(IllegalStateException.class, () -> sdk.startHealthTask());
     }
 
@@ -406,6 +512,25 @@ class GrpcAgonesSdkTest {
 
         // then
         Assertions.assertDoesNotThrow(() -> sdk.close());
+    }
+
+    @Test
+    @DisplayName("Should throw on any method if channel is closed")
+    void shouldThrowIfChannelIsClosed() {
+        // given
+        sdk.close();
+
+        // when
+        CompletableFuture<Void> readyFuture = sdk.ready();
+
+        // then
+        Assertions.assertInstanceOf(
+            StatusRuntimeException.class,
+            Assertions.assertThrows(
+                CompletionException.class,
+                readyFuture::join
+            ).getCause()
+        );
     }
 
     @Test

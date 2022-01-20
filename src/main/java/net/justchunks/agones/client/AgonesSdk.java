@@ -1,8 +1,8 @@
 package net.justchunks.agones.client;
 
 import agones.dev.sdk.Sdk.GameServer;
-import io.grpc.Context.CancellableContext;
-import io.grpc.stub.StreamObserver;
+import net.justchunks.client.base.observer.StreamConsumer;
+import net.justchunks.client.base.operation.CancellableOperation;
 import org.intellij.lang.annotations.Pattern;
 import org.intellij.lang.annotations.Subst;
 import org.jetbrains.annotations.Contract;
@@ -15,7 +15,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 
 /**
  * Das {@link AgonesSdk Agones SDK} stellt die technische Schnittstelle dar, mit der dieser Server Agones seinen
@@ -54,11 +53,11 @@ import java.util.function.Consumer;
  * ohnehin wenig externe Änderungen vornehmen, muss dieser Umstand nicht besonders beachtet werden.
  *
  * <p>Alle Schnittstellen werden asynchron ausgeführt und geben so ihr Ergebnis (falls es eine Rückgabe gibt) innerhalb
- * einer {@link CompletableFuture vervollständigbaren Zukunft} zurück. Schnittstellen, die mit {@link StreamObserver
- * Observern} arbeiten, werden ebenfalls asynchron ausgeführt und erhalten ihre Rückgabe asynchron über den
- * entsprechenden {@link StreamObserver Observer} (bzw. dessen {@link StreamObserver#onNext(Object)
+ * einer {@link CompletableFuture vervollständigbaren Zukunft} zurück. Schnittstellen, die mit {@link StreamConsumer
+ * StreamConsumern} arbeiten, werden ebenfalls asynchron ausgeführt und erhalten ihre Rückgabe asynchron über den
+ * entsprechenden {@link StreamConsumer Consumer} (bzw. dessen {@link StreamConsumer#onNext(Object)
  * Next-Schnittstelle}). Fehler werden in den {@link CompletableFuture Futures} zurückgegeben oder an die {@link
- * StreamObserver#onError(Throwable) Error-Schnittelle} des {@link StreamObserver Observers} gesendet.
+ * StreamConsumer#onError(Throwable) Error-Schnittelle} des {@link StreamConsumer Consumers} gesendet.
  *
  * <p>Die Signaturen der Endpunkte des SDKs wurden teilweise geringfügig auf unsere Struktur angepasst, entsprechen aber
  * im Allgemeinen den offiziellen Schnittstellen. Das SDK wird immer kompatibel zu den offiziellen Empfehlungen gehalten
@@ -270,29 +269,41 @@ public interface AgonesSdk extends AutoCloseable {
     CompletableFuture<@NotNull GameServer> gameServer();
 
     /**
-     * Registriert einen neuen {@link StreamObserver Observer} für die Verarbeitung von Änderung an der Ressource
-     * innerhalb von Kubernetes. Der Callback erhält also immer dann ein neues Element, wenn es eine Änderung an der
+     * Registriert einen neuen {@link StreamConsumer Consumer} für die Verarbeitung von Änderung an der Ressource
+     * innerhalb von Kubernetes. Der Consumer erhält also immer dann ein neues Element, wenn es eine Änderung an der
      * Ressource gab. Es werden sowohl die Änderungen weitergeleitet, die direkt durch dieses SDK ausgelöst wurden, als
      * auch externe Änderungen, die direkt an der Ressource vorgenommen wurden.
      *
      * <p>Das erste Element wird direkt nach der Registrierung weitergeleitet und entspricht dem aktuellen Zustand der
-     * Ressource (ohne das eine Änderung erfolgt ist). Der {@link Consumer Callback} wird asynchron ausgelöst und er
-     * bleibt so lange registriert, wie es diese Instanz gibt. Es ist also nicht möglich den Stream zu deaktivieren.
+     * Ressource (ohne das eine Änderung erfolgt ist). Der {@link StreamConsumer Consumer} wird asynchron ausgelöst,
+     * aber {@link StreamConsumer#onNext(Object)} wird immer nur für ein Element gleichzeitig ausgelöst. Die
+     * Implementation muss also nicht threadsicher sein.
      *
-     * <p>Um den Stream schon vorher zu beenden, kann ein {@link CancellableContext beendbarer Kontext} verwendet
-     * werden, in dem dann diese Methode aufgerufen wird. Dadurch wird der Stream sauber geschlossen und an den {@link
-     * StreamObserver Observer} werden anschließend keine weiteren Elemente gesendet.
+     * <p>Um den Stream zu beenden, kann entweder die zurückgegebene {@link CancellableOperation Operation} {@link
+     * CancellableOperation#cancel() abgeschlossen} werden oder in der {@link StreamConsumer#onNext(Object)} Methode des
+     * {@link StreamConsumer Consumers} wird {@code false} zurückgegeben. Dadurch wird der Stream sauber geschlossen und
+     * an den {@link StreamConsumer Consumer} werden anschließend keine weiteren Elemente gesendet.
      *
-     * @param observer Der {@link StreamObserver Observer}, der die fortlaufenden Änderungen an der Ressource innerhalb
+     * <p>Da der Stream (falls er nicht vorher beendet wird) endlos weiterläuft, kann er das {@link #close()
+     * Herunterfahren} des SDKs verzögern und sollte entsprechend zuvor beendet werden. Damit nicht der maximale Timeout
+     * abgewartet werden muss, sollten alle Streams zuvor geschlossen werden. Sollten noch offene Streams existieren,
+     * wird {@link StreamConsumer#onError(Throwable)} ausgelöst und der Stream beendet.
+     *
+     * @param consumer Der {@link StreamConsumer Consumer}, der die fortlaufenden Änderungen an der Ressource innerhalb
      *                 von Kubernetes verarbeitet.
      *
-     * @throws NullPointerException Falls für den {@link StreamObserver Observer} {@code null} übergeben wird. Da die
+     * @return Eine {@link CancellableOperation unterbrechbare Operation}, die {@link CancellableOperation#cancel()
+     *     abgebrochen} werden kann, um damit aufzuhören weitere Nachrichten zu empfangen.
+     *
+     * @throws NullPointerException Falls für den {@link StreamConsumer Consumer} {@code null} übergeben wird. Da die
      *                              ganze Funktionsweise dieser Methode auf dem Callback basiert, ist ein Aufruf ohne
      *                              Callback nicht im Sinne dieser Methode.
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#watchgameserverfunctiongameserver">Agones
      *     Dokumentation</a>
      */
-    void watchGameServer(@NotNull StreamObserver<@NotNull GameServer> observer);
+    @NotNull
+    @Contract(value = "_ -> new")
+    CancellableOperation watchGameServer(@NotNull StreamConsumer<@NotNull GameServer> consumer);
     //</editor-fold>
 
     //<editor-fold desc="maintenance">

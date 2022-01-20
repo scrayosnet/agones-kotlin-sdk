@@ -11,6 +11,10 @@ group = "net.justchunks"
 version = "2.0.1-SNAPSHOT"
 description = "Agones Java Client SDK"
 
+// define the grpc versions for the build
+val protobufVersion = "3.19.3"
+val grpcVersion = "1.43.2"
+
 // hook the plugins for the builds
 plugins {
     `java-library`
@@ -26,17 +30,34 @@ plugins {
 repositories {
     // official maven repository
     mavenCentral()
+
+    // justchunks repository
+    maven {
+        url = uri("https://gitlab.dev.scrayos.net/api/v4/groups/4/-/packages/maven")
+
+        credentials(HttpHeaderCredentials::class) {
+            name = mavenRepositoryTokenType
+            value = mavenRepositoryToken
+        }
+
+        authentication {
+            create<HttpHeaderAuthentication>("header")
+        }
+    }
 }
 
 // declare all dependencies (for compilation and runtime)
 dependencies {
+    // add the client base as a global api dependency (so that we can use it in interfaces)
+    api("net.justchunks:client-base:1.0.0")
+
     // add protobuf-java as a global api dependency (because of the generated messages)
-    api("com.google.protobuf:protobuf-java:3.19.1")
+    api("com.google.protobuf:protobuf-java:$protobufVersion")
 
     // runtime resources (are present during compilation and runtime)
-    implementation("io.grpc:grpc-netty-shaded:1.43.1")
-    implementation("io.grpc:grpc-protobuf:1.43.1")
-    implementation("io.grpc:grpc-stub:1.43.1")
+    implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
+    implementation("io.grpc:grpc-protobuf:$grpcVersion")
+    implementation("io.grpc:grpc-stub:$grpcVersion")
     // https://github.com/lukas-krecan/future-converter
     // it was recommended against using ListenableFuture for new APIs: https://groups.google.com/g/guava-discuss/c/Relx9uIIpUg/m/1VT1ii9bCwAJ
     implementation("net.javacrumbs.future-converter:future-converter-java8-guava:1.2.0")
@@ -76,7 +97,7 @@ protobuf {
     // configure the protobuf compiler for the proto compilation
     protoc {
         // set the artifact for protoc (the compiler version to use)
-        artifact = "com.google.protobuf:protoc:3.19.1"
+        artifact = "com.google.protobuf:protoc:$protobufVersion"
     }
 
     // configure the plugins for the protobuf build process
@@ -84,7 +105,7 @@ protobuf {
         // add a new "grpc" plugin for the java stub generation
         id("grpc") {
             // set the artifact for protobuf code generation (stubs)
-            artifact = "io.grpc:protoc-gen-grpc-java:1.43.1"
+            artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion"
         }
     }
 

@@ -13,27 +13,36 @@ import agones.dev.sdk.alpha.Alpha.PlayerID;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.Channel;
+import io.grpc.Context;
+import io.grpc.Context.CancellableContext;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import net.javacrumbs.futureconverter.java8guava.FutureConverter;
-import net.justchunks.agones.client.observer.NoopStreamObserver;
+import net.justchunks.client.base.observer.NoopStreamObserver;
+import net.justchunks.client.base.observer.RelayStreamObserver;
+import net.justchunks.client.base.observer.StreamConsumer;
+import net.justchunks.client.base.operation.CancellableOperation;
+import net.justchunks.client.base.operation.ContextCancellableOperation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 import org.jetbrains.annotations.Unmodifiable;
 import org.jetbrains.annotations.VisibleForTesting;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
 import static net.javacrumbs.futureconverter.java8guava.FutureConverter.toCompletableFuture;
@@ -94,8 +103,15 @@ public final class GrpcAgonesSdk implements AgonesSdk {
 
 
     //<editor-fold desc="maintenance">
+    /** Das {@link ReentrantLock Lock} für das Senden der Health-Pings innerhalb des Health-Tasks. */
+    @NotNull
+    private final ReentrantLock healthTaskLock = new ReentrantLock();
     /** Der {@link StreamObserver Stream}, in den die Pings des Health-Tasks eingeschleust werden. */
+    @Nullable
     private StreamObserver<Empty> healthTaskStream;
+    /** Die {@link ScheduledFuture Future} der Ausführung des Health-Tasks mit der er abgebrochen werden kann. */
+    @Nullable
+    private ScheduledFuture<?> healthTaskFuture;
     //</editor-fold>
 
     //<editor-fold desc="stubs">
@@ -299,40 +315,68 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     @NotNull
     @Override
     @Contract(value = " -> new", pure = true)
-    public CompletableFuture<GameServer> gameServer() {
+    public CompletableFuture<@NotNull GameServer> gameServer() {
         // call the endpoint (synchronously) with an empty request and return the response
         return toCompletableFuture(futureStub.getGameServer(Empty.getDefaultInstance()));
     }
 
+    @NotNull
     @Override
-    public void watchGameServer(@NotNull final StreamObserver<@NotNull GameServer> observer) {
-        // check that the provided callback actually exists
+    @Contract(value = "_ -> new")
+    public CancellableOperation watchGameServer(@NotNull final StreamConsumer<@NotNull GameServer> consumer) {
+        // check that the provided consumer actually exists
         Preconditions.checkNotNull(
-            observer,
-            "The supplied observer cannot be null!"
+            consumer,
+            "The supplied consumer cannot be null!"
         );
 
+        // create a new context object that can be used to terminate the stream
+        final CancellableContext context = Context.current().withCancellation();
+
         // call the endpoint with an empty request and use the callback to handle responses
-        asyncStub.watchGameServer(
+        context.run(() -> asyncStub.watchGameServer(
             Empty.getDefaultInstance(),
-            observer
-        );
+            RelayStreamObserver.getInstance(consumer, context)
+        ));
+
+        // return the wrapped cancellable context
+        return new ContextCancellableOperation(context);
     }
 
     @Override
     public void startHealthTask() {
         // check that the health task was not already started
         Preconditions.checkState(
-            healthTaskStream == null,
+            healthTaskFuture == null && healthTaskStream == null,
             "The health task was already started for this SDK and cannot be started again!"
+        );
+
+        // check that the channel is not already shutting down or terminated
+        Preconditions.checkState(
+            !channel.isShutdown() && !channel.isTerminated(),
+            "The health task cannot be started as the channel is already being shut down!"
         );
 
         // assign a new async stream to send the health pings in
         healthTaskStream = asyncStub.health(NoopStreamObserver.getInstance());
 
         // register the task to periodically send pings
-        executorService.scheduleAtFixedRate(
-            () -> healthTaskStream.onNext(Empty.getDefaultInstance()),
+        healthTaskFuture = executorService.scheduleAtFixedRate(
+            () -> {
+                try {
+                    // acquire the lock to prevent race conditions while shutting down
+                    healthTaskLock.lock();
+
+                    // if the channel was shut down in the meantime, we don't execute the ping
+                    if (!channel.isShutdown()) {
+                        // actually execute the health ping
+                        healthTaskStream.onNext(Empty.getDefaultInstance());
+                    }
+                } finally {
+                    // release the lock until the next iteration
+                    healthTaskLock.unlock();
+                }
+            },
             0L,
             HEALTH_PING_INTERVAL.toMillis(),
             TimeUnit.MILLISECONDS
@@ -358,21 +402,39 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     @Override
     public void close() {
         try {
-            // cancel the running health task (if any)
+            // acquire the lock to prevent race conditions while shutting down
+            healthTaskLock.lock();
+
+            // cancel the running health task (if there is any)
+            if (healthTaskFuture != null) {
+                healthTaskFuture.cancel(false);
+                healthTaskFuture = null;
+            }
+
+            // complete the running health stream (if there is any)
             if (healthTaskStream != null) {
                 healthTaskStream.onCompleted();
+                healthTaskStream = null;
             }
 
             // shutdown and wait for it to complete
-            channel
+            final boolean finishedShutdown = channel
                 .shutdown()
                 .awaitTermination(SHUTDOWN_GRACE_PERIOD.toMillis(), TimeUnit.MILLISECONDS);
+
+            // force shutdown if it did not terminate
+            if (!finishedShutdown) {
+                channel.shutdownNow();
+            }
         } catch (final InterruptedException ex) {
             // log so we know the origin/reason for this interruption
             LOG.debug("Thread was interrupted while waiting for the shutdown of a GrpcAgonesSdk.", ex);
 
             // set interrupted status of this thread
             Thread.currentThread().interrupt();
+        } finally {
+            // release the lock so that the task can resume execution for its final tick
+            healthTaskLock.unlock();
         }
     }
     //</editor-fold>
@@ -473,16 +535,14 @@ public final class GrpcAgonesSdk implements AgonesSdk {
                     .build()
             )).handle((result, exception) -> {
                 if (exception != null) {
-                    if (exception instanceof StatusRuntimeException ex) {
-                        // get the status for this exception
-                        final Status state = ex.getStatus();
+                    // get the status from the triggered exception
+                    final Status state = Status.fromThrowable(exception);
 
-                        // if the player limit is exhausted, convert the exception
-                        if (state.getCode().value() == 2
-                            && state.getDescription().equals("Players are already at capacity")
-                        ) {
-                            throw new IllegalStateException("Player capacity is exhausted!");
-                        }
+                    // if the player limit is exhausted, convert the exception
+                    if (state.getCode().value() == 2
+                        && Objects.equals(state.getDescription(), "Players are already at capacity")
+                    ) {
+                        throw new IllegalStateException("Player capacity is exhausted!");
                     }
 
                     // in any other case, rethrow the original exception
