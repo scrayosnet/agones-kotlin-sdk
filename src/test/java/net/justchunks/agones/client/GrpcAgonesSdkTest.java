@@ -39,11 +39,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.Lock;
 
-import static net.justchunks.agones.client.AgonesSdk.HEALTH_PING_INTERVAL;
 import static net.justchunks.agones.client.AgonesSdk.METADATA_KEY_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -56,6 +57,7 @@ class GrpcAgonesSdkTest {
 
     private static final int GRPC_PORT = 9357;
     private static final int HTTP_PORT = 9358;
+    private static final int SHORT_WAIT_TIMEOUT_MILLIS = 5_000;
     private static final int WAIT_TIMEOUT_MILLIS = 10_000;
 
 
@@ -306,7 +308,7 @@ class GrpcAgonesSdkTest {
         // wait
         logConsumer.waitUntil(
             frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
-            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            WAIT_TIMEOUT_MILLIS,
             TimeUnit.MILLISECONDS
         );
 
@@ -332,7 +334,7 @@ class GrpcAgonesSdkTest {
         // wait
         logConsumer.waitUntil(
             frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
-            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            WAIT_TIMEOUT_MILLIS,
             TimeUnit.MILLISECONDS
         );
 
@@ -362,21 +364,17 @@ class GrpcAgonesSdkTest {
         // wait
         logConsumer.waitUntil(
             frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
-            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            WAIT_TIMEOUT_MILLIS,
             TimeUnit.MILLISECONDS
         );
 
         // when
         sdk.label(labelKey, labelValue).join();
-        sdk.label(labelKey + "a", labelValue).join();
-        sdk.label(labelKey + "b", labelValue).join();
         operation.cancel();
         sdk.label(labelKey + "c", labelValue).join();
-        sdk.label(labelKey + "d", labelValue).join();
-        sdk.label(labelKey + "e", labelValue).join();
 
         // then
-        verify(gameServerConsumer, Mockito.after(5_000L).times(3)).onNext(any());
+        verify(gameServerConsumer, Mockito.after(SHORT_WAIT_TIMEOUT_MILLIS).times(1)).onNext(any());
     }
 
     @Test
@@ -387,7 +385,7 @@ class GrpcAgonesSdkTest {
         String labelKey = "valid_key";
         String labelValue = "valid_value";
         StreamConsumer<GameServer> gameServerConsumer = (StreamConsumer<GameServer>) mock(StreamConsumer.class);
-        when(gameServerConsumer.onNext(any())).thenReturn(true, true, false);
+        when(gameServerConsumer.onNext(any())).thenReturn(false);
 
         // when
         CancellableOperation operation = sdk.watchGameServer(gameServerConsumer);
@@ -395,20 +393,16 @@ class GrpcAgonesSdkTest {
         // wait
         logConsumer.waitUntil(
             frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
-            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            WAIT_TIMEOUT_MILLIS,
             TimeUnit.MILLISECONDS
         );
 
         // when
         sdk.label(labelKey, labelValue).join();
         sdk.label(labelKey + "a", labelValue).join();
-        sdk.label(labelKey + "b", labelValue).join();
-        sdk.label(labelKey + "c", labelValue).join();
-        sdk.label(labelKey + "d", labelValue).join();
-        sdk.label(labelKey + "e", labelValue).join();
 
         // then
-        verify(gameServerConsumer, Mockito.after(5_000L).times(3)).onNext(any());
+        verify(gameServerConsumer, Mockito.after(SHORT_WAIT_TIMEOUT_MILLIS).times(1)).onNext(any());
     }
 
     @Test
@@ -425,7 +419,7 @@ class GrpcAgonesSdkTest {
         // wait
         logConsumer.waitUntil(
             frame -> frame.getUtf8String().contains("Connected to watch GameServer..."),
-            (int) AgonesSdk.HEALTH_PING_INTERVAL.toMillis() + WAIT_TIMEOUT_MILLIS,
+            WAIT_TIMEOUT_MILLIS,
             TimeUnit.MILLISECONDS
         );
 
@@ -433,12 +427,12 @@ class GrpcAgonesSdkTest {
         sdk.close();
 
         // then
-        verify(gameServerConsumer, timeout(HEALTH_PING_INTERVAL.toMillis()).times(1)).onError(any());
+        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(1)).onError(any());
     }
 
     @Test
     @DisplayName("Should throw NPE on #watchGameServer(null)")
-    void shouldThrowOnNullCallbackObserver() {
+    void shouldThrowOnNullWatchConsumer() {
         // when, then
         Assertions.assertThrows(NullPointerException.class, () -> sdk.watchGameServer(null));
     }
@@ -505,6 +499,36 @@ class GrpcAgonesSdkTest {
     }
 
     @Test
+    @DisplayName("Health task start should acquire and release lock")
+    void healthTaskStartShouldAcquireAndReleaseLock() {
+        // given
+        Lock lock = mock(Lock.class);
+        sdk.setHealthTaskLock(lock);
+
+        // when
+        sdk.startHealthTask();
+
+        // then
+        verify(lock, atLeast(1)).lock();
+        verify(lock, atLeast(1)).unlock();
+    }
+
+    @Test
+    @DisplayName("Health task should acquire and release lock")
+    void healthTaskShouldAcquireAndReleaseLock() {
+        // given
+        Lock lock = mock(Lock.class);
+        sdk.setHealthTaskLock(lock);
+
+        // when
+        sdk.startHealthTask();
+
+        // then
+        verify(lock, timeout(WAIT_TIMEOUT_MILLIS).atLeast(2)).lock();
+        verify(lock, timeout(WAIT_TIMEOUT_MILLIS).atLeast(2)).unlock();
+    }
+
+    @Test
     @DisplayName("Close should be idempotent")
     void closeShouldBeIdempotent() {
         // when
@@ -531,6 +555,21 @@ class GrpcAgonesSdkTest {
                 readyFuture::join
             ).getCause()
         );
+    }
+
+    @Test
+    @DisplayName("Close should acquire and release lock")
+    void closeShouldAcquireAndReleaseLock() {
+        // given
+        Lock lock = mock(Lock.class);
+        sdk.setHealthTaskLock(lock);
+
+        // when
+        sdk.close();
+
+        // then
+        verify(lock, times(1)).lock();
+        verify(lock, times(1)).unlock();
     }
 
     @Test

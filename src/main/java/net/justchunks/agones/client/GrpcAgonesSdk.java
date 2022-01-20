@@ -31,6 +31,7 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
+import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.annotations.Unmodifiable;
 import org.jetbrains.annotations.VisibleForTesting;
 
@@ -42,6 +43,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Pattern;
 
@@ -105,7 +107,7 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     //<editor-fold desc="maintenance">
     /** Das {@link ReentrantLock Lock} für das Senden der Health-Pings innerhalb des Health-Tasks. */
     @NotNull
-    private final ReentrantLock healthTaskLock = new ReentrantLock();
+    private Lock healthTaskLock = new ReentrantLock();
     /** Der {@link StreamObserver Stream}, in den die Pings des Health-Tasks eingeschleust werden. */
     @Nullable
     private StreamObserver<Empty> healthTaskStream;
@@ -345,42 +347,50 @@ public final class GrpcAgonesSdk implements AgonesSdk {
 
     @Override
     public void startHealthTask() {
-        // check that the health task was not already started
-        Preconditions.checkState(
-            healthTaskFuture == null && healthTaskStream == null,
-            "The health task was already started for this SDK and cannot be started again!"
-        );
+        try {
+            // acquire the lock so that we never start two health tasks at once
+            healthTaskLock.lock();
 
-        // check that the channel is not already shutting down or terminated
-        Preconditions.checkState(
-            !channel.isShutdown() && !channel.isTerminated(),
-            "The health task cannot be started as the channel is already being shut down!"
-        );
+            // check that the health task was not already started
+            Preconditions.checkState(
+                healthTaskFuture == null,
+                "The health task was already started for this SDK and cannot be started again!"
+            );
 
-        // assign a new async stream to send the health pings in
-        healthTaskStream = asyncStub.health(NoopStreamObserver.getInstance());
+            // check that the channel is not already shutting down or terminated
+            Preconditions.checkState(
+                !channel.isShutdown(),
+                "The health task cannot be started as the channel is already being shut down!"
+            );
 
-        // register the task to periodically send pings
-        healthTaskFuture = executorService.scheduleAtFixedRate(
-            () -> {
-                try {
-                    // acquire the lock to prevent race conditions while shutting down
-                    healthTaskLock.lock();
+            // assign a new async stream to send the health pings in
+            healthTaskStream = asyncStub.health(NoopStreamObserver.getInstance());
 
-                    // if the channel was shut down in the meantime, we don't execute the ping
-                    if (!channel.isShutdown()) {
-                        // actually execute the health ping
-                        healthTaskStream.onNext(Empty.getDefaultInstance());
+            // register the task to periodically send pings
+            healthTaskFuture = executorService.scheduleAtFixedRate(
+                () -> {
+                    try {
+                        // acquire the lock to prevent race conditions while shutting down
+                        healthTaskLock.lock();
+
+                        // if the channel was shut down in the meantime, we don't execute the ping
+                        if (!channel.isShutdown()) {
+                            // actually execute the health ping
+                            healthTaskStream.onNext(Empty.getDefaultInstance());
+                        }
+                    } finally {
+                        // release the lock until the next iteration
+                        healthTaskLock.unlock();
                     }
-                } finally {
-                    // release the lock until the next iteration
-                    healthTaskLock.unlock();
-                }
-            },
-            0L,
-            HEALTH_PING_INTERVAL.toMillis(),
-            TimeUnit.MILLISECONDS
-        );
+                },
+                0L,
+                HEALTH_PING_INTERVAL.toMillis(),
+                TimeUnit.MILLISECONDS
+            );
+        } finally {
+            // release the lock so that the task can run
+            healthTaskLock.unlock();
+        }
     }
 
     @NotNull
@@ -684,4 +694,19 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         }
         //</editor-fold>
     }
+
+    //<editor-fold desc="test accessors">
+    @TestOnly
+    @Contract(mutates = "this")
+    void setHealthTaskLock(@NotNull final Lock lock) {
+        this.healthTaskLock = lock;
+    }
+
+    @NotNull
+    @TestOnly
+    @Contract(pure = true)
+    Lock getHealthTaskLock() {
+        return healthTaskLock;
+    }
+    //</editor-fold>
 }
