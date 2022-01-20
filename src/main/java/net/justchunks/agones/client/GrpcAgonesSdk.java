@@ -449,6 +449,35 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     }
     //</editor-fold>
 
+    //<editor-fold desc="test accessors">
+    /**
+     * Setzt ein neues {@link Lock} für die Synchronisierung des {@link #startHealthTask() Health-Tasks}. Diese Methode
+     * wird für die Testbarkeit benötigt.
+     *
+     * @param lock Das neue {@link #healthTaskLock Lock}, das für die Synchronisierung des {@link #startHealthTask()
+     *             Health-Tasks} verwendet werden soll.
+     */
+    @TestOnly
+    @Contract(mutates = "this")
+    void setHealthTaskLock(@NotNull final Lock lock) {
+        this.healthTaskLock = lock;
+    }
+
+    /**
+     * Ermittelt das aktuelle {@link Lock} für die Synchronisierung des {@link #startHealthTask() Health-Tasks}. Diese
+     * Methode wird für die Testbarkeit benötigt.
+     *
+     * @return Das aktuelle {@link #healthTaskLock Lock}, das für die Synchronisierung des {@link #startHealthTask()
+     *     Health-Tasks} verwendet wird.
+     */
+    @NotNull
+    @TestOnly
+    @Contract(pure = true)
+    Lock getHealthTaskLock() {
+        return healthTaskLock;
+    }
+    //</editor-fold>
+
     //<editor-fold desc="utility: port resolution">
     /**
      * Ermittelt automatisch den Port für die Verbindung zum gRPC-Server der externen Schnittstelle des {@link AgonesSdk
@@ -694,19 +723,4 @@ public final class GrpcAgonesSdk implements AgonesSdk {
         }
         //</editor-fold>
     }
-
-    //<editor-fold desc="test accessors">
-    @TestOnly
-    @Contract(mutates = "this")
-    void setHealthTaskLock(@NotNull final Lock lock) {
-        this.healthTaskLock = lock;
-    }
-
-    @NotNull
-    @TestOnly
-    @Contract(pure = true)
-    Lock getHealthTaskLock() {
-        return healthTaskLock;
-    }
-    //</editor-fold>
 }
