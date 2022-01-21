@@ -66,7 +66,7 @@ class GrpcAgonesSdkTest {
 
     @Container
     private GenericContainer<?> sdkContainer = new GenericContainer<>(
-        DockerImageName.parse("gcr.io/agones-images/agones-sdk:1.20.0")
+        DockerImageName.parse("gcr.io/agones-images/agones-sdk:1.21.0-c91b1df")
     )
         .withCommand(
             "--local",
@@ -295,10 +295,8 @@ class GrpcAgonesSdkTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    @DisplayName("Should not receive initial GameServer update")
-    void shouldNotReceiveInitialUpdate() throws TimeoutException {
-        // this test will be rectified once https://github.com/googleforgames/agones/issues/2437 is fixed
-        // then the other counts should also be updated
+    @DisplayName("Should receive initial GameServer update")
+    void shouldReceiveInitialUpdate() throws TimeoutException {
         // given
         StreamConsumer<GameServer> gameServerConsumer = (StreamConsumer<GameServer>) mock(StreamConsumer.class);
 
@@ -313,9 +311,7 @@ class GrpcAgonesSdkTest {
         );
 
         // then
-        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(0)).onNext(any());
-        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(0)).onCompleted();
-        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS).times(0)).onError(any());
+        verify(gameServerConsumer, Mockito.after(SHORT_WAIT_TIMEOUT_MILLIS).times(1)).onNext(any());
     }
 
     @Test
@@ -326,6 +322,7 @@ class GrpcAgonesSdkTest {
         String labelKey = "valid_key";
         String labelValue = "valid_value";
         StreamConsumer<GameServer> gameServerConsumer = (StreamConsumer<GameServer>) mock(StreamConsumer.class);
+        when(gameServerConsumer.onNext(any())).thenReturn(true);
         ArgumentCaptor<GameServer> captor = ArgumentCaptor.forClass(GameServer.class);
 
         // when
@@ -342,7 +339,7 @@ class GrpcAgonesSdkTest {
         sdk.label(labelKey, labelValue).join();
 
         // then
-        verify(gameServerConsumer, timeout(WAIT_TIMEOUT_MILLIS)).onNext(captor.capture());
+        verify(gameServerConsumer, timeout(SHORT_WAIT_TIMEOUT_MILLIS).times(2)).onNext(captor.capture());
         Map<String, String> labelMap = captor.getValue().getObjectMeta().getLabelsMap();
         Assertions.assertTrue(labelMap.containsKey(METADATA_KEY_PREFIX + labelKey));
         Assertions.assertTrue(labelMap.containsValue(labelValue));
