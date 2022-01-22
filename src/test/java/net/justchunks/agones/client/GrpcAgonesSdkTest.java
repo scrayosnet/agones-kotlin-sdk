@@ -66,7 +66,7 @@ class GrpcAgonesSdkTest {
 
     @Container
     private GenericContainer<?> sdkContainer = new GenericContainer<>(
-        DockerImageName.parse("gcr.io/agones-images/agones-sdk:1.21.0-c91b1df")
+        DockerImageName.parse("gcr.io/agones-images/agones-sdk:1.21.0-ffe0797-linux_amd64")
     )
         .withCommand(
             "--local",
@@ -369,7 +369,8 @@ class GrpcAgonesSdkTest {
         operation.cancel();
 
         // then
-        verify(gameServerConsumer, Mockito.after(SHORT_WAIT_TIMEOUT_MILLIS).times(1)).onError(any());
+        verify(gameServerConsumer, Mockito.after(SHORT_WAIT_TIMEOUT_MILLIS).times(1)).onCompleted();
+        verify(gameServerConsumer, times(0)).onError(any());
     }
 
     @Test
@@ -398,6 +399,8 @@ class GrpcAgonesSdkTest {
 
         // then
         verify(gameServerConsumer, Mockito.after(SHORT_WAIT_TIMEOUT_MILLIS).times(1)).onNext(any());
+        verify(gameServerConsumer, times(1)).onCompleted();
+        verify(gameServerConsumer, times(0)).onError(any());
     }
 
     @Test
