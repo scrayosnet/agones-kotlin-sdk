@@ -49,7 +49,7 @@ repositories {
 // declare all dependencies (for compilation and runtime)
 dependencies {
     // add the client base as a global api dependency (so that we can use it in interfaces)
-    api("net.justchunks:client-base:1.0.0")
+    api("net.justchunks:client-base:1.0.1")
 
     // add protobuf-java as a global api dependency (because of the generated messages)
     api("com.google.protobuf:protobuf-java:$protobufVersion")
