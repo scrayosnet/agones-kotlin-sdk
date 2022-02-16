@@ -66,7 +66,7 @@ class GrpcAgonesSdkTest {
 
     @Container
     private GenericContainer<?> sdkContainer = new GenericContainer<>(
-        DockerImageName.parse("gcr.io/agones-images/agones-sdk:1.21.0-ffe0797-linux_amd64")
+        DockerImageName.parse("gcr.io/agones-images/agones-sdk:1.21.0")
     )
         .withCommand(
             "--local",
