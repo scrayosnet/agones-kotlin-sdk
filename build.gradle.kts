@@ -8,7 +8,7 @@ val mavenRepositoryToken: String by project
 
 // provide general GAV coordinates
 group = "net.justchunks"
-version = "3.0.2-SNAPSHOT"
+version = "3.1.0"
 description = "Agones Java Client SDK"
 
 // define the grpc versions for the build
@@ -49,7 +49,7 @@ repositories {
 // declare all dependencies (for compilation and runtime)
 dependencies {
     // add the client base as a global api dependency (so that we can use it in interfaces)
-    api("net.justchunks:client-base:1.0.1")
+    api("net.justchunks:client-base:1.1.0")
 
     // add protobuf-java as a global api dependency (because of the generated messages)
     api("com.google.protobuf:protobuf-java:$protobufVersion")
