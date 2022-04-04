@@ -47,6 +47,8 @@ stages:
 
 compile:
   interruptible: true
+  dependencies: []
+  needs: []
   stage: 'compile'
   script:
   - './gradlew assemble'
@@ -56,6 +58,9 @@ compile:
 
 .test: &test
   interruptible: true
+  dependencies: []
+  needs:
+  - 'compile'
   stage: 'test'
   services:
   - 'docker:dind'
@@ -97,10 +102,18 @@ test-development:
   coverage: '/(\d+(?:\.\d+)?)% covered/'
 
 jacoco-production:
+  dependencies:
+  - 'test-production'
+  needs:
+  - 'test-production'
   <<: *jacoco
   <<: *production-job
 
 jacoco-development:
+  dependencies:
+  - 'test-development'
+  needs:
+  - 'test-development'
   <<: *jacoco
   <<: *development-job
 
@@ -128,10 +141,18 @@ jacoco-development:
   coverage: '/>> Generated \d+ mutations Killed \d+ \((\d+(?:\.\d+)?)%\)/'
 
 pitest-production:
+  dependencies:
+  - 'test-production'
+  needs:
+  - 'test-production'
   <<: *pitest
   <<: *production-job
 
 pitest-development:
+  dependencies:
+  - 'test-development'
+  needs:
+  - 'test-development'
   <<: *pitest
   <<: *development-job
 
@@ -145,10 +166,22 @@ pitest-development:
   - './gradlew sonarqube -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN -Dsonar.gitlab.project_id=$CI_PROJECT_ID -Dsonar.gitlab.commit_sha=$CI_COMMIT_SHA -Dsonar.gitlab.ref_name=$CI_COMMIT_REF_NAME -Dsonar.pitest.mode=reuseReport'
 
 sonarqube-production:
+  dependencies:
+  - 'jacoco-production'
+  - 'pitest-production'
+  needs:
+  - 'jacoco-production'
+  - 'pitest-production'
   <<: *sonarqube
   <<: *production-job
 
 sonarqube-development:
+  dependencies:
+  - 'jacoco-development'
+  - 'pitest-development'
+  needs:
+  - 'jacoco-development'
+  - 'pitest-development'
   <<: *sonarqube
   <<: *development-job
 
@@ -168,10 +201,18 @@ sonarqube-development:
       cobertura: 'build/cobertura.xml'
 
 coverage-visualization-production:
+  dependencies:
+  - 'jacoco-production'
+  needs:
+  - 'jacoco-production'
   <<: *coverage-visualization
   <<: *production-job
 
 coverage-visualization-development:
+  dependencies:
+  - 'jacoco-development'
+  needs:
+  - 'jacoco-development'
   <<: *coverage-visualization
   <<: *development-job
 
@@ -180,6 +221,9 @@ coverage-visualization-development:
 
 maven:
   stage: 'deploy'
+  dependencies: []
+  needs:
+  - 'test-production'
   script:
   - './gradlew publish'
   artifacts:
@@ -192,6 +236,9 @@ maven:
 
 pages:
   stage: 'deploy'
+  dependencies: []
+  needs:
+  - 'maven'
   script:
   - './gradlew javadoc'
   - 'mv build/docs/javadoc public'
@@ -204,8 +251,12 @@ pages:
 # release
 
 release:
-  image: 'registry.gitlab.com/gitlab-org/release-cli:latest'
   stage: 'release'
+  cache: []
+  dependencies: []
+  needs:
+  - 'maven'
+  image: 'registry.gitlab.com/gitlab-org/release-cli:latest'
   # necessary until https://gitlab.com/gitlab-org/gitlab/-/issues/223856
   script:
   - 'echo Preparing Release'
