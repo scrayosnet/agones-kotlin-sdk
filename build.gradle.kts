@@ -13,7 +13,7 @@ description = "Agones Java Client SDK"
 
 // define the grpc versions for the build
 val protobufVersion = "3.19.4"
-val grpcVersion = "1.44.1"
+val grpcVersion = "1.45.1"
 
 // hook the plugins for the builds
 plugins {
