@@ -198,7 +198,9 @@ sonarqube-development:
   - 'python /opt/cover2cover.py build/reports/jacoco/test/jacocoTestReport.xml $CI_PROJECT_DIR/src/main/java/ > build/cobertura.xml'
   artifacts:
     reports:
-      cobertura: 'build/cobertura.xml'
+      coverage_report:
+        coverage_format: 'cobertura'
+        path: 'build/cobertura.xml'
 
 coverage-visualization-production:
   dependencies:
