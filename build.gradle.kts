@@ -1,6 +1,6 @@
 @file:Suppress("UNUSED_VARIABLE", "UnstableApiUsage")
 
-import com.google.protobuf.gradle.*
+import com.google.protobuf.gradle.id
 
 // define variables that get supplied through gradle.properties
 val mavenRepositoryTokenType: String by project
@@ -12,8 +12,8 @@ version = "3.2.1-SNAPSHOT"
 description = "Agones Java Client SDK"
 
 // define the grpc versions for the build
-val protobufVersion = "3.21.1"
-val grpcVersion = "1.47.0"
+val protobufVersion = "3.21.9"
+val grpcVersion = "1.50.2"
 
 // hook the plugins for the builds
 plugins {
@@ -21,9 +21,9 @@ plugins {
     `maven-publish`
     jacoco
     idea
-    id("org.sonarqube") version "3.3"
-    id("info.solidsoft.pitest") version "1.7.0"
-    id("com.google.protobuf") version "0.8.18"
+    id("org.sonarqube") version "3.5.0.2730"
+    id("info.solidsoft.pitest") version "1.9.0"
+    id("com.google.protobuf") version "0.9.1"
 }
 
 // configure the repositories for the dependencies
@@ -63,17 +63,17 @@ dependencies {
     implementation("net.javacrumbs.future-converter:future-converter-java8-guava:1.2.0")
 
     // classpaths we only compile against (are provided or unnecessary in runtime)
-    compileOnly("org.apache.logging.log4j:log4j-api:2.17.2")
+    compileOnly("org.apache.logging.log4j:log4j-api:2.19.0")
     compileOnly("org.jetbrains:annotations:23.0.0")
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // testing resources (are present during compilation and runtime [shaded])
-    testImplementation("org.mockito:mockito-junit-jupiter:4.6.1")
-    testImplementation("org.testcontainers:testcontainers:1.17.2")
-    testImplementation("org.testcontainers:junit-jupiter:1.17.2")
+    testImplementation("org.mockito:mockito-junit-jupiter:4.8.0")
+    testImplementation("org.testcontainers:testcontainers:1.17.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.17.4")
     testImplementation("com.googlecode.json-simple:json-simple:1.1.1")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.17.2")
-    testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.17.2")
+    testImplementation("org.apache.logging.log4j:log4j-core:2.19.0")
+    testImplementation("org.apache.logging.log4j:log4j-slf4j-impl:2.19.0")
 
     // classpath we only compile our test-code against (are provided or unnecessary in runtime)
     testCompileOnly("org.jetbrains:annotations:23.0.0")
@@ -125,7 +125,7 @@ protobuf {
 testing {
     suites {
         val test by getting(JvmTestSuite::class) {
-            useJUnitJupiter("5.8.2")
+            useJUnitJupiter("5.9.1")
         }
     }
 }
@@ -156,8 +156,8 @@ publishing {
 
 // configure pitest plugin
 pitest {
-    pitestVersion.set("1.7.3")
-    junit5PluginVersion.set("0.15")
+    pitestVersion.set("1.9.11")
+    junit5PluginVersion.set("1.1.0")
 
     threads.set(8)
     enableDefaultIncrementalAnalysis.set(true)

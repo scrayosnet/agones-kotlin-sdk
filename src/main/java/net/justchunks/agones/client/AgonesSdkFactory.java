@@ -38,13 +38,13 @@ public final class AgonesSdkFactory {
      *
      * <p>Der übergebene {@link ScheduledExecutorService Executor-Service} wird von dem {@link AgonesSdk Agones SDK}
      * nicht verwaltet, sondern nur genutzt. Das bedeutet, dass dieser {@link ScheduledExecutorService Executor-Service}
-     * an anderer Stelle gestoppt werden muss, sollte dies gewünscht sein. Der Service wird für die periodischen {@link
-     * AgonesSdk#health() Health-Pings} und die Ausführung von Callbacks innerhalb der Kommunikation mit der externen
-     * Schnittstelle verwendet.
+     * an anderer Stelle gestoppt werden muss, sollte dies gewünscht sein. Der Service wird für die periodischen
+     * {@link AgonesSdk#health() Health-Pings} und die Ausführung von Callbacks innerhalb der Kommunikation mit der
+     * externen Schnittstelle verwendet.
      *
      * @param executorService Der {@link ScheduledExecutorService Executor-Service}, der für die Ausführung der
-     *                        Callbacks und das Versenden der {@link AgonesSdk#health() Health-Pings} dieses {@link
-     *                        AgonesSdk Agones SDKs} verwendet werden soll.
+     *                        Callbacks und das Versenden der {@link AgonesSdk#health() Health-Pings} dieses
+     *                        {@link AgonesSdk Agones SDKs} verwendet werden soll.
      *
      * @return Eine neue Instanz eines {@link AgonesSdk Agones SDKs}, die für die Kommunikation mit der externen Agones
      *     Schnittstelle auf dieser Plattform verwendet werden kann.

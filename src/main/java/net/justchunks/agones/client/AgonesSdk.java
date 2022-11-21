@@ -258,9 +258,9 @@ public interface AgonesSdk extends AutoCloseable {
      * Zuweisung sowie die Konfiguration enthalten. Die Rückgabe entspricht garantiert immer dem, was durch diese SDK
      * gesetzt wurde, auch wenn der Wert noch nicht in der Kubernetes Ressource aktualisiert wurde.
      *
-     * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit den {@link GameServer Informationen der
-     *     GameServer-Ressource}, die abgeschlossen wird, sobald die Rückmeldung des externen Agones SDKs eingetroffen
-     *     ist.
+     * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit den
+     *     {@link GameServer Informationen der GameServer-Ressource}, die abgeschlossen wird, sobald die Rückmeldung des
+     *     externen Agones SDKs eingetroffen ist.
      *
      * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#gameserver">Agones Dokumentation</a>
      */
@@ -292,8 +292,9 @@ public interface AgonesSdk extends AutoCloseable {
      * @param consumer Der {@link StreamConsumer Consumer}, der die fortlaufenden Änderungen an der Ressource innerhalb
      *                 von Kubernetes verarbeitet.
      *
-     * @return Eine {@link CancellableOperation unterbrechbare Operation}, die {@link CancellableOperation#cancel()
-     *     abgebrochen} werden kann, um damit aufzuhören weitere Nachrichten zu empfangen.
+     * @return Eine {@link CancellableOperation unterbrechbare Operation}, die
+     *     {@link CancellableOperation#cancel() abgebrochen} werden kann, um damit aufzuhören weitere Nachrichten zu
+     *     empfangen.
      *
      * @throws NullPointerException Falls für den {@link StreamConsumer Consumer} {@code null} übergeben wird. Da die
      *                              ganze Funktionsweise dieser Methode auf dem Callback basiert, ist ein Aufruf ohne
@@ -312,8 +313,9 @@ public interface AgonesSdk extends AutoCloseable {
      * Startet den Agones Health Task, der periodisch {@link #health() Health-Pings} an das {@link AgonesSdk Agones SDK}
      * sendet und diese Instanz damit valide hält. Dieser Task sollte so früh wie möglich gestartet werden und er läuft
      * bis diese Instanz heruntergefahren wird. Das Melden der {@link #health() Health-Pings} bewirken keine
-     * Zustandsveränderung wie beispielweise {@link #ready()}. Falls mehr Kontrolle über die {@link #health()
-     * Health-Pings} gewünscht wird, können sie stattdessen auch regelmäßig manuell ausgelöst und verwaltet werden.
+     * Zustandsveränderung wie beispielweise {@link #ready()}. Falls mehr Kontrolle über die
+     * {@link #health() Health-Pings} gewünscht wird, können sie stattdessen auch regelmäßig manuell ausgelöst und
+     * verwaltet werden.
      *
      * @throws IllegalStateException Falls der Task für die regelmäßigen {@link #health() Health-Pings} innerhalb dieses
      *                               {@link AgonesSdk Agones SDKs} bereits aktiviert wurde und daher nicht erneut
@@ -330,8 +332,8 @@ public interface AgonesSdk extends AutoCloseable {
      * Beispiel innerhalb eines Try-With-Resources Blocks) aufgerufen werden, um die Nutzung sauber zu beenden.
      *
      * @implNote Das Schließen der offenen Verbindungen und das Freigeben der Ressourcen muss blocking passieren,
-     *     damit nach dem Aufruf garantiert heruntergefahren werden kann. Der Unterschied dieser Methode zu {@link
-     *     AutoCloseable#close()} ist, dass die Auslösung von Fehlern nicht gestattet wird.
+     *     damit nach dem Aufruf garantiert heruntergefahren werden kann. Der Unterschied dieser Methode zu
+     *     {@link AutoCloseable#close()} ist, dass die Auslösung von Fehlern nicht gestattet wird.
      * @see AutoCloseable
      */
     @Override
@@ -374,9 +376,9 @@ public interface AgonesSdk extends AutoCloseable {
      * Der {@link Alpha Alpha-Channel} stellt Schnittstellen des {@link AgonesSdk Agones SDK} bereit, die bislang noch
      * nicht großflächig getestet wurde und deren Methoden sich von einem Update zum nächsten noch drastisch verändern
      * oder wegfallen könnten. Die genutzten Endpoints können aber dennoch frei genutzt werden aber es ist möglich, dass
-     * noch einige Bugs auftreten können. Sobald die Features mehr getestet wurden, steigen sie in den {@link Beta
-     * Beta-Channel} auf. Der {@link Alpha Alpha-Channel} kann über die Schnittstelle {@link #alpha()} von dem {@link
-     * AgonesSdk Agones SDK} bezogen werden.
+     * noch einige Bugs auftreten können. Sobald die Features mehr getestet wurden, steigen sie in den
+     * {@link Beta Beta-Channel} auf. Der {@link Alpha Alpha-Channel} kann über die Schnittstelle {@link #alpha()} von
+     * dem {@link AgonesSdk Agones SDK} bezogen werden.
      */
     interface Alpha {
 
@@ -445,9 +447,9 @@ public interface AgonesSdk extends AutoCloseable {
          * werden nur die Spieler zurückgegeben, die auch tatsächlich an dem Spiel teilnehmen. Zuschauer werden also
          * ignoriert. Die Rückgabe entspricht garantiert immer dem, was durch diese SDK gesetzt wurde, auch wenn der
          *
-         * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit einer neuen, unveränderbaren {@link
-         *     List Liste} der {@link UUID einzigartigen IDs} der Spieler, die aktuell dieser Instanz zugeordnet sind,
-         *     die abgeschlossen wird, sobald die Rückmeldung des externen Agones SDKs eingetroffen ist.
+         * @return Eine {@link CompletableFuture vervollständigbare Zukunft} mit einer neuen, unveränderbaren
+         *     {@link List Liste} der {@link UUID einzigartigen IDs} der Spieler, die aktuell dieser Instanz zugeordnet
+         *     sind, die abgeschlossen wird, sobald die Rückmeldung des externen Agones SDKs eingetroffen ist.
          *
          * @see <a href="https://agones.dev/site/docs/guides/client-sdks/#alphagetconnectedplayers">Agones
          *     Dokumentation</a>
@@ -542,8 +544,8 @@ public interface AgonesSdk extends AutoCloseable {
      * ausführlich getestet und standardmäßig aktiviert wurden, aber noch nicht derart breit genutzt wurden, wie es bei
      * den Features des Stable-Channels der Fall ist. Die genutzten Endpoints können aber dennoch frei genutzt werden
      * und es sind insgesamt wenig Bugs zu erwarten. Sobald die Features mehr getestet wurden, steigen sie in den
-     * Stable-Channel auf. Der {@link Beta Beta-Channel} kann über die Schnittstelle {@link #beta()} von dem {@link
-     * AgonesSdk Agones SDK} bezogen werden.
+     * Stable-Channel auf. Der {@link Beta Beta-Channel} kann über die Schnittstelle {@link #beta()} von dem
+     * {@link AgonesSdk Agones SDK} bezogen werden.
      */
     interface Beta {
         // currently, there are no beta sdk features

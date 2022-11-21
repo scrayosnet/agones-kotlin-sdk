@@ -1,4 +1,4 @@
-image: 'registry.dev.scrayos.net/scrayosnet/developmentenvironments/gradle:7-jdk17'
+image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:7-jdk17'
 
 
 cache:

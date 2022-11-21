@@ -60,7 +60,7 @@ import static net.javacrumbs.futureconverter.java8guava.FutureConverter.toComple
 public final class GrpcAgonesSdk implements AgonesSdk {
 
     //<editor-fold desc="LOGGER">
-    /** Der Logger, der für das Senden der Fehlermeldungen  in dieser Klasse verwendet werden soll. */
+    /** Der Logger, der für das Senden der Fehlermeldungen in dieser Klasse verwendet werden soll. */
     @NotNull
     private static final Logger LOG = LogManager.getLogger(GrpcAgonesSdk.class);
     //</editor-fold>
@@ -145,14 +145,15 @@ public final class GrpcAgonesSdk implements AgonesSdk {
 
     //<editor-fold desc="CONSTRUCTORS">
     /**
-     * Erstellt eine neue Instanz der gRPC-Implementation des Agones SDKs. Dafür wird der entsprechende {@link Channel
-     * Netzwerk-Channel} dynamisch zusammengebaut. Der Port wird (falls möglich) über die Umgebungsvariable {@value
-     * AGONES_SDK_PORT_ENV_KEY} bezogen. Dabei werden für den {@link Channel} die zugehörigen Stubs für asynchrone und
-     * synchrone Kommunikation mit der Schnittstelle instantiiert. Durch die Erstellung dieser Instanz wird noch keine
-     * Aktion unternommen und entsprechend auch nicht die Kommunikation mit der externen Schnittstelle aufgenommen.
+     * Erstellt eine neue Instanz der gRPC-Implementation des Agones SDKs. Dafür wird der entsprechende
+     * {@link Channel Netzwerk-Channel} dynamisch zusammengebaut. Der Port wird (falls möglich) über die
+     * Umgebungsvariable {@value AGONES_SDK_PORT_ENV_KEY} bezogen. Dabei werden für den {@link Channel} die zugehörigen
+     * Stubs für asynchrone und synchrone Kommunikation mit der Schnittstelle instantiiert. Durch die Erstellung dieser
+     * Instanz wird noch keine Aktion unternommen und entsprechend auch nicht die Kommunikation mit der externen
+     * Schnittstelle aufgenommen.
      *
-     * @param executorService Der {@link ScheduledExecutorService Executor-Service}, der für das Senden der {@link
-     *                        #health() Health-Pings} und das Ausführen der Callbacks verwendet werden soll.
+     * @param executorService Der {@link ScheduledExecutorService Executor-Service}, der für das Senden der
+     *                        {@link #health() Health-Pings} und das Ausführen der Callbacks verwendet werden soll.
      */
     @Contract(pure = true)
     GrpcAgonesSdk(@NotNull final ScheduledExecutorService executorService) {
@@ -161,15 +162,15 @@ public final class GrpcAgonesSdk implements AgonesSdk {
     }
 
     /**
-     * Erstellt eine neue Instanz der gRPC-Implementation des Agones SDKs. Dafür wird der entsprechende {@link Channel
-     * Netzwerk-Channel} mit expliziten Werten zusammengebaut. Der Host und der Port werden direkt übergeben und
-     * unverändert für die Erstellung des {@link Channel Channels} genutzt. Dabei werden für den {@link Channel} die
-     * zugehörigen Stubs für asynchrone und synchrone Kommunikation mit der Schnittstelle instantiiert. Durch die
-     * Erstellung dieser Instanz wird noch keine Aktion unternommen und entsprechend auch nicht die Kommunikation mit
-     * der externen Schnittstelle aufgenommen.
+     * Erstellt eine neue Instanz der gRPC-Implementation des Agones SDKs. Dafür wird der entsprechende
+     * {@link Channel Netzwerk-Channel} mit expliziten Werten zusammengebaut. Der Host und der Port werden direkt
+     * übergeben und unverändert für die Erstellung des {@link Channel Channels} genutzt. Dabei werden für den
+     * {@link Channel} die zugehörigen Stubs für asynchrone und synchrone Kommunikation mit der Schnittstelle
+     * instantiiert. Durch die Erstellung dieser Instanz wird noch keine Aktion unternommen und entsprechend auch nicht
+     * die Kommunikation mit der externen Schnittstelle aufgenommen.
      *
-     * @param executorService Der {@link ScheduledExecutorService Executor-Service}, der für das Senden der {@link
-     *                        #health() Health-Pings} und das Ausführen der Callbacks verwendet werden soll.
+     * @param executorService Der {@link ScheduledExecutorService Executor-Service}, der für das Senden der
+     *                        {@link #health() Health-Pings} und das Ausführen der Callbacks verwendet werden soll.
      * @param host            Der Host, unter dem der gRPC Server erreichbar ist und zu dem die Verbindung entsprechend
      *                        aufgenommen werden soll.
      * @param port            Der Port, unter dem der gRPC Server erreichbar ist und zu dem die Verbindung entsprechend
@@ -454,8 +455,8 @@ public final class GrpcAgonesSdk implements AgonesSdk {
      * Setzt ein neues {@link Lock} für die Synchronisierung des {@link #startHealthTask() Health-Tasks}. Diese Methode
      * wird für die Testbarkeit benötigt.
      *
-     * @param lock Das neue {@link #healthTaskLock Lock}, das für die Synchronisierung des {@link #startHealthTask()
-     *             Health-Tasks} verwendet werden soll.
+     * @param lock Das neue {@link #healthTaskLock Lock}, das für die Synchronisierung des
+     *             {@link #startHealthTask() Health-Tasks} verwendet werden soll.
      */
     @TestOnly
     @Contract(mutates = "this")
@@ -467,8 +468,8 @@ public final class GrpcAgonesSdk implements AgonesSdk {
      * Ermittelt das aktuelle {@link Lock} für die Synchronisierung des {@link #startHealthTask() Health-Tasks}. Diese
      * Methode wird für die Testbarkeit benötigt.
      *
-     * @return Das aktuelle {@link #healthTaskLock Lock}, das für die Synchronisierung des {@link #startHealthTask()
-     *     Health-Tasks} verwendet wird.
+     * @return Das aktuelle {@link #healthTaskLock Lock}, das für die Synchronisierung des
+     *     {@link #startHealthTask() Health-Tasks} verwendet wird.
      */
     @NotNull
     @TestOnly
@@ -480,13 +481,13 @@ public final class GrpcAgonesSdk implements AgonesSdk {
 
     //<editor-fold desc="utility: port resolution">
     /**
-     * Ermittelt automatisch den Port für die Verbindung zum gRPC-Server der externen Schnittstelle des {@link AgonesSdk
-     * Agones SDKs}. Dabei wird zunächst versucht den Port über die Umgebungsvariable {@value AGONES_SDK_PORT_ENV_KEY}
-     * aufzulösen. Ist diese Variable nicht gesetzt, wird zum Standard-Port für die gRPC-Schnittstelle in Agones
-     * ({@value DEFAULT_AGONES_SDK_PORT}) zurückgefallen.
+     * Ermittelt automatisch den Port für die Verbindung zum gRPC-Server der externen Schnittstelle des
+     * {@link AgonesSdk Agones SDKs}. Dabei wird zunächst versucht den Port über die Umgebungsvariable
+     * {@value AGONES_SDK_PORT_ENV_KEY} aufzulösen. Ist diese Variable nicht gesetzt, wird zum Standard-Port für die
+     * gRPC-Schnittstelle in Agones ({@value DEFAULT_AGONES_SDK_PORT}) zurückgefallen.
      *
-     * @return Der automatisch ermittelte Port für die Verbindung zum gRPC-Server der externen Schnittstelle des {@link
-     *     AgonesSdk Agones SDKs}.
+     * @return Der automatisch ermittelte Port für die Verbindung zum gRPC-Server der externen Schnittstelle des
+     *     {@link AgonesSdk Agones SDKs}.
      */
     @VisibleForTesting
     @Contract(pure = true)
@@ -706,8 +707,8 @@ public final class GrpcAgonesSdk implements AgonesSdk {
 
         //<editor-fold desc="CONSTRUCTORS">
         /**
-         * Erstellt eine neue Instanz der gRPC-Implementation des {@link Beta Beta-Channels} für einen bestimmten {@link
-         * Channel Netzwerk-Channel}. Dabei werden für den übergebenen {@link Channel} die zugehörigen Stubs für
+         * Erstellt eine neue Instanz der gRPC-Implementation des {@link Beta Beta-Channels} für einen bestimmten
+         * {@link Channel Netzwerk-Channel}. Dabei werden für den übergebenen {@link Channel} die zugehörigen Stubs für
          * asynchrone und synchrone Kommunikation mit der Schnittstelle instantiiert. Durch die Erstellung dieser
          * Instanz wird noch keine Aktion unternommen und entsprechend auch nicht die Kommunikation mit der externen
          * Schnittstelle aufgenommen.
