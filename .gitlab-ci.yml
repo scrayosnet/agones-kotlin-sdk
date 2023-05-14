@@ -1,4 +1,4 @@
-image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:7-jdk17'
+image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:8.0.2-jdk17'
 
 
 cache:
@@ -25,19 +25,24 @@ stages:
 - 'release'
 
 
+.job-defaults: &job-defaults
+  interruptible: true
+
 .release-job: &release-job
+  <<: *job-defaults
   rules:
   - if: '$CI_COMMIT_TAG'
   allow_failure: false
 
 .production-job: &production-job
+  <<: *job-defaults
   rules:
   - if: '$CI_COMMIT_BRANCH == "main"'
   - if: '$CI_COMMIT_BRANCH =~ /^hotfix\/.+$/'
-  - if: '$CI_COMMIT_TAG'
   # failure can be decided for each job individually
 
 .development-job: &development-job
+  <<: *job-defaults
   rules:
   - if: '$CI_COMMIT_BRANCH =~ /^dev\/.+$/'
   allow_failure: true
@@ -71,7 +76,6 @@ compile:
   - './gradlew check'
   artifacts:
     paths:
-    - 'build/jacoco/test.exec'
     - 'build/test-results/test/'
     reports:
       junit:
@@ -87,34 +91,33 @@ test-development:
   <<: *development-job
 
 
-# jacoco
+# kover
 
-.jacoco: &jacoco
+.kover: &kover
   interruptible: true
   stage: 'coverage'
   script:
-  - './gradlew jacocoTestReport'
-  - 'awk -F"," ''{ instructions += $4 + $5; covered += $5 } END { print covered, "/", instructions, "instructions covered"; print 100*covered/instructions "% covered" }'' build/reports/jacoco/test/jacocoTestReport.csv'
+  - './gradlew koverReportPrint'
   artifacts:
     paths:
-    - 'build/reports/jacoco/test/jacocoTestReport.xml'
+    - 'build/reports/kover'
     when: 'always'
-  coverage: '/(\d+(?:\.\d+)?)% covered/'
+  coverage: '/Total Code Coverage: (\d+(?:\.\d+)?)%/'
 
-jacoco-production:
+kover-production:
   dependencies:
   - 'test-production'
   needs:
   - 'test-production'
-  <<: *jacoco
+  <<: *kover
   <<: *production-job
 
-jacoco-development:
+kover-development:
   dependencies:
   - 'test-development'
   needs:
   - 'test-development'
-  <<: *jacoco
+  <<: *kover
   <<: *development-job
 
 
@@ -163,59 +166,26 @@ pitest-development:
   interruptible: true
   stage: 'quality assurance'
   script:
-  - './gradlew sonarqube -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN -Dsonar.gitlab.project_id=$CI_PROJECT_ID -Dsonar.gitlab.commit_sha=$CI_COMMIT_SHA -Dsonar.gitlab.ref_name=$CI_COMMIT_REF_NAME -Dsonar.pitest.mode=reuseReport'
+  - './gradlew sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN -Dsonar.qualitygate.wait=true'
 
 sonarqube-production:
   dependencies:
-  - 'jacoco-production'
+  - 'kover-production'
   - 'pitest-production'
   needs:
-  - 'jacoco-production'
+  - 'kover-production'
   - 'pitest-production'
   <<: *sonarqube
   <<: *production-job
 
 sonarqube-development:
   dependencies:
-  - 'jacoco-development'
+  - 'kover-development'
   - 'pitest-development'
   needs:
-  - 'jacoco-development'
+  - 'kover-development'
   - 'pitest-development'
   <<: *sonarqube
-  <<: *development-job
-
-
-# coverage-visualization
-
-.coverage-visualization: &coverage-visualization
-  interruptible: true
-  stage: 'quality assurance'
-  # we don't need any caches for this job, only artifacts
-  cache: []
-  image: 'registry.gitlab.com/haynes/jacoco2cobertura:1.0.8'
-  script:
-  - 'python /opt/cover2cover.py build/reports/jacoco/test/jacocoTestReport.xml $CI_PROJECT_DIR/src/main/java/ > build/cobertura.xml'
-  artifacts:
-    reports:
-      coverage_report:
-        coverage_format: 'cobertura'
-        path: 'build/cobertura.xml'
-
-coverage-visualization-production:
-  dependencies:
-  - 'jacoco-production'
-  needs:
-  - 'jacoco-production'
-  <<: *coverage-visualization
-  <<: *production-job
-
-coverage-visualization-development:
-  dependencies:
-  - 'jacoco-development'
-  needs:
-  - 'jacoco-development'
-  <<: *coverage-visualization
   <<: *development-job
 
 
@@ -232,22 +202,6 @@ maven:
     paths:
     - 'build/libs/*'
   <<: *production-job
-
-
-# pages
-
-pages:
-  stage: 'deploy'
-  dependencies: []
-  needs:
-  - 'maven'
-  script:
-  - './gradlew javadoc'
-  - 'mv build/docs/javadoc public'
-  artifacts:
-    paths:
-    - 'public'
-  <<: *release-job
 
 
 # release

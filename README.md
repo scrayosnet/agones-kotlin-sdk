@@ -1,4 +1,4 @@
-# Agones Client SDK (Java)
+# Agones Client SDK (Kotlin/Java)
 
 The Agones Client SDK provides the interface for lifecycle management, metadata and player tracking of the individual
 GameServer instances within Agones. The different interfaces need to be used in order to inform the controller of Agones
