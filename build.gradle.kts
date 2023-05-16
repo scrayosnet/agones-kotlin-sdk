@@ -23,7 +23,7 @@ val coroutinesVersion: String by project
 
 // provide general GAV coordinates
 group = "net.justchunks"
-version = "4.0.0-SNAPSHOT"
+version = "4.0.0"
 description = "Agones Client SDK (Kotlin/Java)"
 
 // hook the plugins for the builds
