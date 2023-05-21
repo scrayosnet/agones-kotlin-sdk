@@ -12,6 +12,7 @@ import agones.dev.sdk.beta.SDKGrpcKt as BetaSDKGrpcKt
 import io.grpc.Channel
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
+import io.grpc.Status.Code
 import io.grpc.StatusException
 import java.time.Duration
 import java.util.concurrent.TimeUnit
@@ -40,7 +41,9 @@ import org.apache.logging.log4j.LogManager
  * to establish the connection.
  */
 class GrpcAgonesSdk internal constructor(
+    /** The host of the external interface of the sidecar SDK, that will be used to establish the connection. */
     val host: String = AGONES_SDK_HOST,
+    /** The port of the external interface of the sidecar SDK, that will be used to establish the connection. */
     val port: Int = AGONES_SDK_PORT
 ) : AgonesSdk {
 
@@ -124,7 +127,7 @@ class GrpcAgonesSdk internal constructor(
     }
 
     override suspend fun gameServer(): GameServer {
-        // call the endpoint (synchronously) with an empty request and return the response
+        // call the endpoint with an empty request and return the response
         return stub.getGameServer(Empty.getDefaultInstance())
     }
 
@@ -189,7 +192,9 @@ class GrpcAgonesSdk internal constructor(
                 ).bool
             } catch (ex: StatusException) {
                 // if the player limit is exhausted, convert the exception
-                if (ex.status.code.value() == 2 && ex.status.description == "Players are already at capacity") {
+                if (ex.status.code == Code.UNKNOWN &&
+                    ex.status.description == "Players are already at capacity"
+                ) {
                     throw IllegalStateException("Player capacity is exhausted!", ex)
                 }
 
