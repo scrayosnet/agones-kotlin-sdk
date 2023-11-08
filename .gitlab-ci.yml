@@ -167,7 +167,7 @@ pitest-development:
   interruptible: true
   stage: 'quality assurance'
   script:
-  - './gradlew sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.login=$SONAR_TOKEN -Dsonar.qualitygate.wait=true'
+  - './gradlew sonar -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true'
 
 sonarqube-production:
   dependencies:

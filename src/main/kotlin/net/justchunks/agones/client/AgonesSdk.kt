@@ -1,7 +1,6 @@
 package net.justchunks.agones.client
 
 import agones.dev.sdk.Sdk.GameServer
-import java.time.Duration
 import java.util.regex.Pattern
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -409,8 +408,5 @@ interface AgonesSdk : AutoCloseable {
 
         /** The pattern that the key of labels and annotations (without its prefix) should match to be accepted. */
         internal val META_KEY_PATTERN = Pattern.compile("[a-z0-9A-Z]([a-z0-9A-Z_.-])*[a-z0-9A-Z]")
-
-        /** The period of time that should be waited for successful shutdown after [shutdown] was invoked. */
-        internal val SHUTDOWN_GRACE_PERIOD = Duration.ofSeconds(5)
     }
 }

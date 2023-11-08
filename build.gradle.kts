@@ -2,12 +2,13 @@
 
 import com.google.protobuf.gradle.id
 import java.util.Locale as locale
+import org.gradle.internal.impldep.org.junit.experimental.categories.Categories.CategoryFilter.exclude
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 // define variables that get supplied through gradle.properties
 val mavenRepositoryTokenType: String by project
 val mavenRepositoryToken: String by project
-val kotlinVersion: String by project
+val dokkaVersion: String by project
 val protobufVersion: String by project
 val grpcVersion: String by project
 val grpcKotlinVersion: String by project
@@ -20,6 +21,7 @@ val mockkVersion: String by project
 val pitestEngineVersion: String by project
 val pitestJunitVersion: String by project
 val coroutinesVersion: String by project
+val junitVersion: String by project
 
 // provide general GAV coordinates
 group = "net.justchunks"
@@ -73,7 +75,7 @@ dependencies {
     testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:$log4jVersion")
 
     // integrate the dokka html export plugin
-    dokkaHtmlPlugin("org.jetbrains.dokka:kotlin-as-java-plugin:$kotlinVersion")
+    dokkaHtmlPlugin("org.jetbrains.dokka:kotlin-as-java-plugin:$dokkaVersion")
 }
 
 // configure the java extension (versions + jars)
@@ -87,6 +89,15 @@ java {
     // also generate javadoc and sources
     withSourcesJar()
     withJavadocJar()
+}
+
+// configure the kotlin extension
+kotlin {
+    // set the toolchain version that is required to build this project
+    // replaces sourceCompatibility and targetCompatibility as it also sets these implicitly
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
 
 // configure the protobuf extension (protoc + grpc)
@@ -134,7 +145,7 @@ protobuf {
 testing {
     suites {
         val test by getting(JvmTestSuite::class) {
-            useJUnitJupiter("5.9.2")
+            useJUnitJupiter(junitVersion)
         }
     }
 }
