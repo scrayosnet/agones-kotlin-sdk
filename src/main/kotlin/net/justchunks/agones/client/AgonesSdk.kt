@@ -1,9 +1,9 @@
 package net.justchunks.agones.client
 
 import agones.dev.sdk.Sdk.GameServer
-import java.util.regex.Pattern
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import java.util.regex.Pattern
 
 /**
  * The [Agones SDK][AgonesSdk] represents the technical interface through which this server can communicate its current

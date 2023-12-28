@@ -1,27 +1,27 @@
 package net.justchunks.agones.client
 
 import agones.dev.sdk.SDKGrpcKt
-import agones.dev.sdk.Sdk.Duration as AgonesDuration
 import agones.dev.sdk.Sdk.Empty
 import agones.dev.sdk.Sdk.GameServer
-import agones.dev.sdk.Sdk.KeyValue as AgonesKeyValue
 import agones.dev.sdk.alpha.Alpha
 import agones.dev.sdk.alpha.Alpha.PlayerID
-import agones.dev.sdk.alpha.SDKGrpcKt as AlphaSDKGrpcKt
-import agones.dev.sdk.beta.SDKGrpcKt as BetaSDKGrpcKt
 import io.grpc.Channel
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status.Code
 import io.grpc.StatusException
-import java.time.Duration
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import net.justchunks.agones.client.AgonesSdk.Companion.AGONES_SDK_HOST
 import net.justchunks.agones.client.AgonesSdk.Companion.META_KEY_PATTERN
 import net.justchunks.agones.client.GrpcAgonesSdk.Companion.AGONES_SDK_PORT_ENV_KEY
-import org.apache.logging.log4j.LogManager
+import org.slf4j.LoggerFactory
+import java.time.Duration
+import java.util.concurrent.TimeUnit
+import agones.dev.sdk.Sdk.Duration as AgonesDuration
+import agones.dev.sdk.Sdk.KeyValue as AgonesKeyValue
+import agones.dev.sdk.alpha.SDKGrpcKt as AlphaSDKGrpcKt
+import agones.dev.sdk.beta.SDKGrpcKt as BetaSDKGrpcKt
 
 /**
  * A [GrpcAgonesSdk] represents the gRPC implementation of the [Agones SDK][AgonesSdk]. The implementation is based on
@@ -44,7 +44,7 @@ class GrpcAgonesSdk internal constructor(
     /** The host of the external interface of the sidecar SDK, that will be used to establish the connection. */
     val host: String = AGONES_SDK_HOST,
     /** The port of the external interface of the sidecar SDK, that will be used to establish the connection. */
-    val port: Int = AGONES_SDK_PORT
+    val port: Int = AGONES_SDK_PORT,
 ) : AgonesSdk {
 
     /** The [channel][ManagedChannel], that will be used for the network communication with the external interface. */
@@ -82,7 +82,7 @@ class GrpcAgonesSdk internal constructor(
         stub.reserve(
             AgonesDuration.newBuilder()
                 .setSeconds(seconds)
-                .build()
+                .build(),
         )
     }
 
@@ -107,7 +107,7 @@ class GrpcAgonesSdk internal constructor(
             AgonesKeyValue.newBuilder()
                 .setKey(key)
                 .setValue(value)
-                .build()
+                .build(),
         )
     }
 
@@ -122,7 +122,7 @@ class GrpcAgonesSdk internal constructor(
             AgonesKeyValue.newBuilder()
                 .setKey(key)
                 .setValue(value)
-                .build()
+                .build(),
         )
     }
 
@@ -157,7 +157,7 @@ class GrpcAgonesSdk internal constructor(
             }
         } catch (ex: InterruptedException) {
             // log so we know the origin/reason for this interruption
-            LOG.debug("Thread was interrupted while waiting for the shutdown of a GrpcAgonesSdk.", ex)
+            logger.debug("Thread was interrupted while waiting for the shutdown of a GrpcAgonesSdk.", ex)
 
             // set interrupted status of this thread
             Thread.currentThread().interrupt()
@@ -188,7 +188,7 @@ class GrpcAgonesSdk internal constructor(
                 return stub.playerConnect(
                     PlayerID.newBuilder()
                         .setPlayerID(playerId)
-                        .build()
+                        .build(),
                 ).bool
             } catch (ex: StatusException) {
                 // if the player limit is exhausted, convert the exception
@@ -208,7 +208,7 @@ class GrpcAgonesSdk internal constructor(
             return stub.playerDisconnect(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId)
-                    .build()
+                    .build(),
             ).bool
         }
 
@@ -223,21 +223,21 @@ class GrpcAgonesSdk internal constructor(
             return stub.isPlayerConnected(
                 PlayerID.newBuilder()
                     .setPlayerID(playerId)
-                    .build()
+                    .build(),
             ).bool
         }
 
         override suspend fun playerCount(): Long {
             // call the endpoint with an empty request and return the response
             return stub.getPlayerCount(
-                Alpha.Empty.getDefaultInstance()
+                Alpha.Empty.getDefaultInstance(),
             ).count
         }
 
         override suspend fun playerCapacity(): Long {
             // call the endpoint with an empty request and return the response
             return stub.getPlayerCapacity(
-                Alpha.Empty.getDefaultInstance()
+                Alpha.Empty.getDefaultInstance(),
             ).count
         }
 
@@ -251,7 +251,7 @@ class GrpcAgonesSdk internal constructor(
             stub.setPlayerCapacity(
                 Alpha.Count.newBuilder()
                     .setCount(capacity)
-                    .build()
+                    .build(),
             )
         }
     }
@@ -277,7 +277,7 @@ class GrpcAgonesSdk internal constructor(
 
     companion object {
         /** The logger that will be utilized to perform any logging for the methods of this class. */
-        private val LOG = LogManager.getLogger(GrpcAgonesSdk::class.java)
+        private val logger = LoggerFactory.getLogger(GrpcAgonesSdk::class.java)
 
         /** The default port, that will be used to communicate with the gRPC server of the sidecar SDK. */
         private const val DEFAULT_AGONES_SDK_PORT: Int = 9357
@@ -310,7 +310,7 @@ class GrpcAgonesSdk internal constructor(
                         textPort.toInt()
                     } catch (ex: NumberFormatException) {
                         throw IllegalArgumentException(
-                            "The supplied environment variable for the port did not contain a valid number."
+                            "The supplied environment variable for the port did not contain a valid number.",
                         )
                     }
                 }

@@ -1,9 +1,9 @@
 package net.justchunks.agones.client
 
-import kotlin.test.assertNotEquals
-import kotlin.test.assertNotNull
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 
 internal class AgonesSdkFactoryTest {
 

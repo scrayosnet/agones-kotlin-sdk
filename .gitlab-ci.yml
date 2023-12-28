@@ -1,4 +1,4 @@
-image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:8.0.2-jdk17'
+image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:8.5-jdk21'
 
 
 cache:
@@ -78,6 +78,7 @@ compile:
   artifacts:
     paths:
     - 'build/test-results/test/'
+    - 'build/reports/ktlint/'
     reports:
       junit:
       - 'build/test-results/test/TEST-*.xml'
@@ -98,12 +99,12 @@ test-development:
   interruptible: true
   stage: 'coverage'
   script:
-  - './gradlew koverReportPrint'
+  - './gradlew koverXmlReport koverLog'
   artifacts:
     paths:
     - 'build/reports/kover'
     when: 'always'
-  coverage: '/Total Code Coverage: (\d+(?:\.\d+)?)%/'
+  coverage: '/application line coverage: (\d+(?:\.\d+)?)%/'
 
 kover-production:
   dependencies:
@@ -173,9 +174,11 @@ sonarqube-production:
   dependencies:
   - 'kover-production'
   - 'pitest-production'
+  - 'test-production'
   needs:
   - 'kover-production'
   - 'pitest-production'
+  - 'test-production'
   <<: *sonarqube
   <<: *production-job
 
@@ -183,9 +186,11 @@ sonarqube-development:
   dependencies:
   - 'kover-development'
   - 'pitest-development'
+  - 'test-development'
   needs:
   - 'kover-development'
   - 'pitest-development'
+  - 'test-development'
   <<: *sonarqube
   <<: *development-job
 

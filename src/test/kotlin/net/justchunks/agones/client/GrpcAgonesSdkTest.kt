@@ -3,14 +3,6 @@ package net.justchunks.agones.client
 import agones.dev.sdk.Sdk.GameServer
 import io.grpc.Status
 import io.grpc.StatusException
-import java.util.concurrent.TimeUnit
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.flow.flowOf
@@ -22,7 +14,6 @@ import org.json.simple.JSONObject
 import org.json.simple.parser.JSONParser
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -35,14 +26,21 @@ import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
+import java.util.concurrent.TimeUnit
+import kotlin.test.assertContains
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
-@Disabled("Integration tests are currently not possible")
 @Testcontainers
 internal class GrpcAgonesSdkTest {
 
     @Container
     private val sdkContainer: GenericContainer<*> = GenericContainer(
-        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.36.0")
+        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.37.0"),
     )
         .withCommand(
             "--local",
@@ -50,14 +48,14 @@ internal class GrpcAgonesSdkTest {
             "--sdk-name=AgonesClientSDK",
             "--grpc-port=$GRPC_PORT",
             "--http-port=$HTTP_PORT",
-            "--feature-gates=PlayerTracking=true&CountsAndLists=true"
+            "--feature-gates=PlayerTracking=true&CountsAndLists=true",
         )
         .withExposedPorts(GRPC_PORT, HTTP_PORT)
         .waitingFor(
             Wait
                 .forHttp("/")
                 .forPort(HTTP_PORT)
-                .forStatusCode(404)
+                .forStatusCode(404),
         )
     private lateinit var sdk: GrpcAgonesSdk
     private lateinit var logConsumer: WaitingConsumer
@@ -66,7 +64,7 @@ internal class GrpcAgonesSdkTest {
     fun beforeEach() {
         sdk = GrpcAgonesSdk(
             sdkContainer.host,
-            sdkContainer.getMappedPort(GRPC_PORT)
+            sdkContainer.getMappedPort(GRPC_PORT),
         )
         logConsumer = WaitingConsumer()
         sdkContainer.followOutput(logConsumer)
@@ -623,7 +621,7 @@ internal class GrpcAgonesSdkTest {
                 { it.utf8String.contains(logMessagePart) },
                 waitMs,
                 TimeUnit.MILLISECONDS,
-                count
+                count,
             )
         }
 
