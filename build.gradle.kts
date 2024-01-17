@@ -32,7 +32,7 @@ plugins {
     `java-library`
     `maven-publish`
     idea
-    kotlin("jvm") version "1.9.21"
+    kotlin("jvm") version "1.9.22"
     id("org.jetbrains.kotlinx.kover") version "0.7.4"
     id("org.jetbrains.dokka") version "1.9.10"
     id("org.sonarqube") version "4.4.1.3373"
@@ -80,7 +80,6 @@ dependencies {
 // configure the java extension
 java {
     // also generate javadoc and sources
-    withJavadocJar()
     withSourcesJar()
 }
 
@@ -140,6 +139,19 @@ testing {
             useJUnitJupiter(junitVersion)
         }
     }
+}
+
+// configure global tasks
+val dokkaHtmlJar = tasks.register<Jar>("dokkaHtmlJar") {
+    dependsOn(tasks.dokkaHtml)
+    from(tasks.dokkaHtml.flatMap { it.outputDirectory })
+    archiveClassifier.set("html-docs")
+}
+
+val dokkaJavadocJar = tasks.register<Jar>("dokkaJavadocJar") {
+    dependsOn(tasks.dokkaJavadoc)
+    from(tasks.dokkaJavadoc.flatMap { it.outputDirectory })
+    archiveClassifier.set("javadoc")
 }
 
 // configure the publishing in the maven repository
