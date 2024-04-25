@@ -5,7 +5,7 @@ import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 // provide general GAV coordinates
 group = "net.justchunks"
-version = "5.0.0"
+version = "5.0.1-SNAPSHOT"
 description = "Agones Client SDK (Kotlin/Java)"
 
 // hook the plugins for the builds
