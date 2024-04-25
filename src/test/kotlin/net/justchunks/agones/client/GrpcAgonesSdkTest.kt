@@ -3,18 +3,22 @@ package net.justchunks.agones.client
 import agones.dev.sdk.Sdk.GameServer
 import io.grpc.Status
 import io.grpc.StatusException
+import io.kotest.matchers.maps.shouldHaveKey
+import io.kotest.matchers.nulls.shouldBeNull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import net.justchunks.agones.client.AgonesSdk.Alpha
 import net.justchunks.agones.client.AgonesSdk.Companion.METADATA_KEY_PREFIX
-import org.json.simple.JSONObject
-import org.json.simple.parser.JSONParser
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -33,16 +37,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-@Disabled("Integration tests do not work in CI/CD yet")
+@OptIn(ExperimentalSerializationApi::class)
 @Testcontainers
 internal class GrpcAgonesSdkTest {
 
     @Container
     private val sdkContainer: GenericContainer<*> = GenericContainer(
-        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.37.0"),
+        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.40.0"),
     )
         .withCommand(
             "--local",
@@ -151,12 +154,14 @@ internal class GrpcAgonesSdkTest {
 
         // then
         val logLine: String = getLogLines("Reserve request has been received!", WAIT_TIMEOUT_MILLIS).first()
-        val durationObject = (JSONParser().parse(logLine) as JSONObject)["duration"] as JSONObject
+        val logObj = Json.parseToJsonElement(logLine).jsonObject
+        logObj shouldHaveKey "duration"
+        val duration = logObj["duration"]!!.jsonObject
         assertEquals("Reserved", sdk.gameServer().status.state)
         if (seconds == 0) {
-            assertNull(durationObject["seconds"])
+            duration["seconds"].shouldBeNull()
         } else {
-            assertEquals(seconds.toLong(), durationObject["seconds"] as Long)
+            assertEquals(seconds.toLong(), duration["seconds"]!!.jsonPrimitive.long)
         }
     }
 
@@ -201,11 +206,11 @@ internal class GrpcAgonesSdkTest {
 
         // then
         val logLine: String = getLogLines("Setting label", WAIT_TIMEOUT_MILLIS).first()
-        val valuesObject = (JSONParser().parse(logLine) as JSONObject)["values"] as JSONObject
+        val valuesObject = Json.parseToJsonElement(logLine).jsonObject["values"]!!.jsonObject
         val gameServer: GameServer = sdk.gameServer()
-        assertEquals(key, valuesObject["key"])
+        assertEquals(key, valuesObject["key"]!!.jsonPrimitive.content)
         assertTrue(gameServer.objectMeta.labelsMap.containsKey(METADATA_KEY_PREFIX + key))
-        assertEquals(value, valuesObject["value"])
+        assertEquals(value, valuesObject["value"]!!.jsonPrimitive.content)
         assertTrue(gameServer.objectMeta.labelsMap.containsValue(value))
     }
 
@@ -228,11 +233,11 @@ internal class GrpcAgonesSdkTest {
 
         // then
         val logLine: String = getLogLines("Setting annotation", WAIT_TIMEOUT_MILLIS).first()
-        val valuesObject = (JSONParser().parse(logLine) as JSONObject)["values"] as JSONObject
+        val valuesObject = Json.parseToJsonElement(logLine).jsonObject["values"]!!.jsonObject
         val gameServer: GameServer = sdk.gameServer()
-        assertEquals(key, valuesObject["key"])
+        assertEquals(key, valuesObject["key"]!!.jsonPrimitive.content)
         assertTrue(gameServer.objectMeta.annotationsMap.containsKey(METADATA_KEY_PREFIX + key))
-        assertEquals(value, valuesObject["value"])
+        assertEquals(value, valuesObject["value"]!!.jsonPrimitive.content)
         assertTrue(gameServer.objectMeta.annotationsMap.containsValue(value))
     }
 

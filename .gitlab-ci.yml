@@ -1,4 +1,4 @@
-image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:8.5-jdk21'
+image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:8.7-jdk21'
 
 include:
 - project: scrayosnet/ci-configuration
@@ -111,45 +111,6 @@ kover-development:
   <<: *development-job
 
 
-# pitest
-
-.pitest: &pitest
-  interruptible: true
-  stage: 'coverage'
-  services:
-  - 'docker:dind'
-  variables:
-    DOCKER_HOST: 'tcp://docker:2375'
-    DOCKER_TLS_CERTDIR: ''
-  script:
-  - './gradlew pitest'
-  cache:
-  - key: '$CI_PROJECT_ID'
-    paths:
-    - 'build/pitHistory.txt'
-  artifacts:
-    paths:
-    - 'build/reports/pitest'
-    when: 'always'
-  coverage: '/>> Generated \d+ mutations Killed \d+ \((\d+(?:\.\d+)?)%\)/'
-
-pitest-production:
-  dependencies:
-  - 'test-production'
-  needs:
-  - 'test-production'
-  <<: *pitest
-  <<: *production-job
-
-pitest-development:
-  dependencies:
-  - 'test-development'
-  needs:
-  - 'test-development'
-  <<: *pitest
-  <<: *development-job
-
-
 # sonarqube
 
 .sonarqube: &sonarqube
@@ -161,11 +122,9 @@ pitest-development:
 sonarqube-production:
   dependencies:
   - 'kover-production'
-  - 'pitest-production'
   - 'test-production'
   needs:
   - 'kover-production'
-  - 'pitest-production'
   - 'test-production'
   <<: *sonarqube
   <<: *production-job
@@ -173,11 +132,9 @@ sonarqube-production:
 sonarqube-development:
   dependencies:
   - 'kover-development'
-  - 'pitest-development'
   - 'test-development'
   needs:
   - 'kover-development'
-  - 'pitest-development'
   - 'test-development'
   <<: *sonarqube
   <<: *development-job

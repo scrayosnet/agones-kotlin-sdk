@@ -1,0 +1,53 @@
+[versions]
+kotlin = "1.9.23"
+dokka = "1.9.20"
+ktlint = "1.1.1"
+junit = "5.10.2"
+kotest-core = "5.8.1"
+kotest-testcontainers = "2.0.2"
+protobuf = "3.25.3"
+protoc-java = "1.63.0"
+protoc-kotlin = "1.4.1"
+kotlin-coroutines = "1.8.0"
+slf4j = "2.0.13"
+log4j = "2.23.1"
+mockk = "1.13.10"
+kotlinx-serialization = "1.6.3"
+testcontainers = "1.19.7"
+
+[libraries]
+protobuf-kotlin = { group = "com.google.protobuf", name = "protobuf-kotlin", version.ref = "protobuf" }
+grpc-protobuf = { group = "io.grpc", name = "grpc-protobuf", version.ref = "protoc-java" }
+grpc-kotlin-stub = { group = "io.grpc", name = "grpc-kotlin-stub", version.ref = "protoc-kotlin" }
+grpc-netty = { group = "io.grpc", name = "grpc-netty", version.ref = "protoc-java" }
+kotlin-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlin-coroutines" }
+kotlin-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlin-coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+kotest-runner = { group = "io.kotest", name = "kotest-runner-junit5", version.ref = "kotest-core" }
+kotest-testcontainers = { group = "io.kotest.extensions", name = "kotest-extensions-testcontainers", version.ref = "kotest-testcontainers" }
+kotest-assertions-json = { group = "io.kotest", name = "kotest-assertions-json", version.ref = "kotest-core" }
+kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test" }
+slf4j = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
+log4j-core = { group = "org.apache.logging.log4j", name = "log4j-core", version.ref = "log4j" }
+log4j-slf4j = { group = "org.apache.logging.log4j", name = "log4j-slf4j-impl", version.ref = "log4j" }
+protoc-core = { group = "com.google.protobuf", name = "protoc", version.ref = "protobuf" }
+protoc-genJava = { group = "io.grpc", name = "protoc-gen-grpc-java", version.ref = "protoc-java" }
+protoc-genKotlin = { group = "io.grpc", name = "protoc-gen-grpc-kotlin", version.ref = "protoc-kotlin" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+testcontainers-core = { group = "org.testcontainers", name = "testcontainers", version.ref = "testcontainers" }
+testcontainers-junit = { group = "org.testcontainers", name = "junit-jupiter", version.ref = "testcontainers" }
+
+[bundles]
+kotest = ["kotest-runner", "kotest-testcontainers", "kotest-assertions-json"]
+grpc = ["grpc-protobuf", "grpc-kotlin-stub"]
+testcontainers = ["testcontainers-core", "testcontainers-junit"]
+log4j = ["log4j-core", "log4j-slf4j"]
+
+[plugins]
+kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+kover = { id = "org.jetbrains.kotlinx.kover", version = "0.7.6" }
+protobuf = { id = "com.google.protobuf", version = "0.9.4" }
+sonarqube = { id = "org.sonarqube", version = "5.0.0.4638" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "12.1.0" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.28.0" }

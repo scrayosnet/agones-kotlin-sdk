@@ -1,26 +1,7 @@
-@file:Suppress("UNUSED_VARIABLE", "UnstableApiUsage")
+@file:Suppress("UnstableApiUsage")
 
 import com.google.protobuf.gradle.id
 import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
-
-// define variables that get supplied through gradle.properties
-val mavenRepositoryTokenType: String by project
-val mavenRepositoryToken: String by project
-val dokkaVersion: String by project
-val protobufVersion: String by project
-val grpcVersion: String by project
-val grpcKotlinVersion: String by project
-val log4jVersion: String by project
-val slf4jVersion: String by project
-val javaxAnnotationsVersion: String by project
-val jsonSimpleVersion: String by project
-val testContainersVersion: String by project
-val mockkVersion: String by project
-val pitestEngineVersion: String by project
-val pitestJunitVersion: String by project
-val coroutinesVersion: String by project
-val junitVersion: String by project
-val ktlintVersion: String by project
 
 // provide general GAV coordinates
 group = "net.justchunks"
@@ -32,13 +13,13 @@ plugins {
     `java-library`
     `maven-publish`
     idea
-    kotlin("jvm") version "1.9.22"
-    id("org.jetbrains.kotlinx.kover") version "0.7.4"
-    id("org.jetbrains.dokka") version "1.9.10"
-    id("org.sonarqube") version "4.4.1.3373"
-    id("info.solidsoft.pitest") version "1.15.0"
-    id("org.jlleitschuh.gradle.ktlint") version "11.6.1"
-    id("com.google.protobuf") version "0.9.4"
+    alias(libs.plugins.kotlin)
+    alias(libs.plugins.dokka)
+    alias(libs.plugins.kover)
+    alias(libs.plugins.mavenPublish)
+    alias(libs.plugins.protobuf)
+    alias(libs.plugins.sonarqube)
+    alias(libs.plugins.ktlint)
 }
 
 // configure the repositories for the dependencies
@@ -49,38 +30,26 @@ repositories {
 
 // declare all dependencies (for compilation and runtime)
 dependencies {
-    // add protobuf-java as a global api dependency (because of the generated messages)
-    api("com.google.protobuf:protobuf-kotlin:$protobufVersion")
-
-    // add coroutines core (for flow and other techniques)
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
+    // add protobuf as api for now for the models
+    api(libs.protobuf.kotlin)
 
     // add gRPC dependencies that are necessary for compilation and execution
-    implementation("io.grpc:grpc-protobuf:$grpcVersion")
-    implementation("io.grpc:grpc-kotlin-stub:$grpcKotlinVersion")
-    runtimeOnly("io.grpc:grpc-netty:$grpcVersion")
+    implementation(libs.bundles.grpc)
 
-    // classpaths we only compile against (are provided or unnecessary in runtime)
-    compileOnly("org.slf4j:slf4j-api:$slf4jVersion")
+    // add coroutines for our coroutine based communication
+    implementation(libs.kotlin.coroutines.core)
 
-    // testing resources (are present during compilation and runtime [shaded])
-    testImplementation(kotlin("test"))
-    testImplementation("io.mockk:mockk:$mockkVersion")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
-    testImplementation("org.testcontainers:testcontainers:$testContainersVersion")
-    testImplementation("org.testcontainers:junit-jupiter:$testContainersVersion")
-    testImplementation("com.googlecode.json-simple:json-simple:$jsonSimpleVersion")
-    testImplementation("org.apache.logging.log4j:log4j-core:$log4jVersion")
-    testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:$log4jVersion")
+    // compile against the slf4j API for logging
+    compileOnly(libs.slf4j)
 
-    // integrate the dokka html export plugin
-    dokkaHtmlPlugin("org.jetbrains.dokka:kotlin-as-java-plugin:$dokkaVersion")
-}
-
-// configure the java extension
-java {
-    // also generate javadoc and sources
-    withSourcesJar()
+    // specify test dependencies
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.bundles.kotest)
+    testImplementation(libs.bundles.testcontainers)
+    testImplementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.mockk)
+    testImplementation(libs.bundles.log4j)
+    testRuntimeOnly(libs.grpc.netty)
 }
 
 // configure the kotlin extension
@@ -96,7 +65,7 @@ protobuf {
     // configure the protobuf compiler for the proto compilation
     protoc {
         // set the artifact for protoc (the compiler version to use)
-        artifact = "com.google.protobuf:protoc:$protobufVersion"
+        artifact = libs.protoc.core.get().toString()
     }
 
     // configure the plugins for the protobuf build process
@@ -104,12 +73,11 @@ protobuf {
         // add a new "grpc" plugin for the java stub generation
         id("grpc") {
             // set the artifact for protobuf code generation (stubs)
-            artifact = "io.grpc:protoc-gen-grpc-java:$grpcVersion"
+            artifact = libs.protoc.genJava.get().toString()
         }
-
-        // add a new "grpckt" plugin for the protobuf build process
+        // add a new "grpckt" plugin for the kotlin stub generation
         id("grpckt") {
-            artifact = "io.grpc:protoc-gen-grpc-kotlin:$grpcKotlinVersion:jdk8@jar"
+            artifact = libs.protoc.genKotlin.get().toString() + ":jdk8@jar"
         }
     }
 
@@ -136,71 +104,26 @@ protobuf {
 testing {
     suites {
         val test by getting(JvmTestSuite::class) {
-            useJUnitJupiter(junitVersion)
+            useJUnitJupiter(libs.versions.junit)
         }
     }
-}
-
-// configure global tasks
-val dokkaHtmlJar = tasks.register<Jar>("dokkaHtmlJar") {
-    dependsOn(tasks.dokkaHtml)
-    from(tasks.dokkaHtml.flatMap { it.outputDirectory })
-    archiveClassifier.set("html-docs")
-}
-
-val dokkaJavadocJar = tasks.register<Jar>("dokkaJavadocJar") {
-    dependsOn(tasks.dokkaJavadoc)
-    from(tasks.dokkaJavadoc.flatMap { it.outputDirectory })
-    archiveClassifier.set("javadoc")
 }
 
 // configure the publishing in the maven repository
 publishing {
     // define the repositories that shall be used for publishing
     repositories {
-        maven {
-            url = uri("https://gitlab.scrayos.net/api/v4/projects/116/packages/maven")
-            credentials(HttpHeaderCredentials::class) {
-                name = mavenRepositoryTokenType
-                value = mavenRepositoryToken
-            }
-            authentication {
-                create<HttpHeaderAuthentication>("header")
-            }
+        maven("https://gitlab.scrayos.net/api/v4/projects/116/packages/maven") {
+            name = "scrayosnet"
+            credentials(PasswordCredentials::class)
         }
     }
-
-    // define the java components as publications for the repository
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-        }
-    }
-}
-
-// configure pitest plugin
-pitest {
-    // configure the most recent versions
-    pitestVersion.set(pitestEngineVersion)
-    junit5PluginVersion.set(pitestJunitVersion)
-
-    // speed up performance by incremental, parallel builds
-    threads.set(8)
-    enableDefaultIncrementalAnalysis.set(true)
-
-    // output results as xml and html
-    outputFormats.addAll("XML", "HTML")
-    timestampedReports.set(false)
-
-    // add the individual source sets
-    mainSourceSets.add(sourceSets.main)
-    testSourceSets.add(sourceSets.test)
 }
 
 // configure ktlint
 ktlint {
     // explicitly use a recent ktlint version for latest checks
-    version = ktlintVersion
+    version = libs.versions.ktlint
 
     // exclude any generated files
     filter {
@@ -212,13 +135,14 @@ ktlint {
     reporters {
         reporter(ReporterType.PLAIN)
         reporter(ReporterType.CHECKSTYLE)
+        reporter(ReporterType.SARIF)
     }
 }
 
 // configure sonarqube plugin
 sonarqube {
     properties {
-        property("sonar.projectName", "shard-format")
+        property("sonar.projectName", "agones-client-sdk")
         property("sonar.projectVersion", version)
         property("sonar.projectDescription", description!!)
         property("sonar.pitest.mode", "reuseReport")
