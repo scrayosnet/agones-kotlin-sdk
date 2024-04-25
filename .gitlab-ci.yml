@@ -2,7 +2,7 @@ image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:8.7-jdk21'
 
 include:
 - project: scrayosnet/ci-configuration
-  file: /templates/gradle-base.yml
+  file: /fragments/gradle-base.yml
 
 
 stages:
