@@ -1,4 +1,4 @@
-image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:8.7-jdk21'
+image: 'registry.scrayos.net/scrayosnet/dev-envs/gradle:8.8-jdk21'
 
 include:
 - project: scrayosnet/ci-configuration

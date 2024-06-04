@@ -10,16 +10,15 @@ description = "Agones Client SDK (Kotlin/Java)"
 
 // hook the plugins for the builds
 plugins {
-    `java-library`
-    `maven-publish`
-    idea
+    alias(libs.plugins.idea)
+    alias(libs.plugins.javaLibrary)
     alias(libs.plugins.kotlin)
     alias(libs.plugins.dokka)
     alias(libs.plugins.kover)
-    alias(libs.plugins.mavenPublish)
     alias(libs.plugins.protobuf)
     alias(libs.plugins.sonarqube)
     alias(libs.plugins.ktlint)
+    alias(libs.plugins.mavenPublish)
 }
 
 // configure the repositories for the dependencies
@@ -145,7 +144,6 @@ sonarqube {
         property("sonar.projectName", "agones-client-sdk")
         property("sonar.projectVersion", version)
         property("sonar.projectDescription", description!!)
-        property("sonar.pitest.mode", "reuseReport")
         property(
             "sonar.kotlin.ktlint.reportPaths",
             "build/reports/ktlint/ktlintKotlinScriptCheck/ktlintKotlinScriptCheck.xml," +
