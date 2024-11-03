@@ -136,13 +136,9 @@ class GrpcAgonesSdk internal constructor(
         return stub.watchGameServer(Empty.getDefaultInstance())
     }
 
-    override fun alpha(): AgonesSdk.Alpha {
-        return alphaSdk
-    }
+    override fun alpha(): AgonesSdk.Alpha = alphaSdk
 
-    override fun beta(): AgonesSdk.Beta {
-        return betaSdk
-    }
+    override fun beta(): AgonesSdk.Beta = betaSdk
 
     override fun close() {
         try {
