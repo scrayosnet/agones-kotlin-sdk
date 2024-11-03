@@ -5,7 +5,7 @@ import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 
 // provide general GAV coordinates
 group = "net.justchunks"
-version = "5.0.1-SNAPSHOT"
+version = "5.1.0-SNAPSHOT"
 description = "Agones Client SDK (Kotlin/Java)"
 
 // hook the plugins for the builds
@@ -46,7 +46,6 @@ dependencies {
     testImplementation(libs.bundles.kotest)
     testImplementation(libs.bundles.testcontainers)
     testImplementation(libs.kotlinx.serialization.json)
-    testImplementation(libs.mockk)
     testImplementation(libs.bundles.log4j)
     testRuntimeOnly(libs.grpc.netty)
 }

@@ -1,19 +1,18 @@
 [versions]
-kotlin = "2.0.0"
+kotlin = "2.0.21"
 dokka = "1.9.20"
-ktlint = "1.2.1"
-junit = "5.10.2"
-kotest-core = "5.8.1"
+ktlint = "1.4.0"
+junit = "5.11.3"
+kotest-core = "5.9.1"
 kotest-testcontainers = "2.0.2"
-protobuf = "3.25.3"
-protoc-java = "1.63.0"
+protobuf = "4.28.3"
+protoc-java = "1.68.1"
 protoc-kotlin = "1.4.1"
-kotlin-coroutines = "1.8.0"
-slf4j = "2.0.13"
-log4j = "2.23.1"
-mockk = "1.13.10"
-kotlinx-serialization = "1.6.3"
-testcontainers = "1.19.7"
+kotlin-coroutines = "1.9.0"
+slf4j = "2.0.16"
+log4j = "2.24.1"
+kotlinx-serialization = "1.7.3"
+testcontainers = "1.20.3"
 
 [libraries]
 protobuf-kotlin = { group = "com.google.protobuf", name = "protobuf-kotlin", version.ref = "protobuf" }
@@ -33,7 +32,6 @@ log4j-slf4j = { group = "org.apache.logging.log4j", name = "log4j-slf4j-impl", v
 protoc-core = { group = "com.google.protobuf", name = "protoc", version.ref = "protobuf" }
 protoc-genJava = { group = "io.grpc", name = "protoc-gen-grpc-java", version.ref = "protoc-java" }
 protoc-genKotlin = { group = "io.grpc", name = "protoc-gen-grpc-kotlin", version.ref = "protoc-kotlin" }
-mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 testcontainers-core = { group = "org.testcontainers", name = "testcontainers", version.ref = "testcontainers" }
 testcontainers-junit = { group = "org.testcontainers", name = "junit-jupiter", version.ref = "testcontainers" }
 
@@ -48,8 +46,8 @@ idea = { id = "org.gradle.idea" }
 javaLibrary = { id = "org.gradle.java-library" }
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
-kover = { id = "org.jetbrains.kotlinx.kover", version = "0.8.0" }
+kover = { id = "org.jetbrains.kotlinx.kover", version = "0.8.3" }
 protobuf = { id = "com.google.protobuf", version = "0.9.4" }
-sonarqube = { id = "org.sonarqube", version = "5.0.0.4638" }
-ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "12.1.0" }
-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.28.0" }
+sonarqube = { id = "org.sonarqube", version = "5.1.0.4882" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "12.1.1" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.30.0" }

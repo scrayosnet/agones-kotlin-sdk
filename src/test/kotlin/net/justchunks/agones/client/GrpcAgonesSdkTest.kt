@@ -45,7 +45,7 @@ internal class GrpcAgonesSdkTest {
 
     @Container
     private val sdkContainer: GenericContainer<*> = GenericContainer(
-        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.40.0"),
+        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.44.0"),
     )
         .withCommand(
             "--local",
@@ -617,9 +617,8 @@ internal class GrpcAgonesSdkTest {
         // no tests so for beta far
     }
 
-    private fun containsLogLine(logMessagePart: String, waitMs: Long = 0, count: Int = 1): Boolean {
-        return getLogLines(logMessagePart, waitMs, count).size == count
-    }
+    private fun containsLogLine(logMessagePart: String, waitMs: Long = 0, count: Int = 1): Boolean =
+        getLogLines(logMessagePart, waitMs, count).size == count
 
     private fun getLogLines(logMessagePart: String, waitMs: Long = 0, count: Int = 1): List<String> {
         // wait for the log line to appear if there is any wait time specified
