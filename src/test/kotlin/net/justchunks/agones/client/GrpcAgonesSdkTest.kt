@@ -45,7 +45,7 @@ internal class GrpcAgonesSdkTest {
 
     @Container
     private val sdkContainer: GenericContainer<*> = GenericContainer(
-        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.44.0"),
+        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.45.0"),
     )
         .withCommand(
             "--local",
