@@ -7,6 +7,7 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=scrayosnet_agones-kotlin-sdk&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=scrayosnet_agones-kotlin-sdk "Reliability")
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=scrayosnet_agones-kotlin-sdk&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=scrayosnet_agones-kotlin-sdk "Maintainability")
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=scrayosnet_agones-kotlin-sdk&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=scrayosnet_agones-kotlin-sdk "Security")
+[![Discord Community](https://shields.io/discord/1351591265887719508)](https://discord.gg/xZ4wbuuKZf "Discord Community")
 
 Agones Kotlin SDK is a [gRPC][grpc-docs] client/binding that wraps the raw protobuf stubs and communication with
 [Agones][agones-project] SDK. The Agones Client SDK provides the interface for lifecycle management, metadata and player
