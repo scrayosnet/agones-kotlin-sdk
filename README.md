@@ -117,3 +117,15 @@ on what that means.
 [grpc-docs]: https://grpc.io/
 
 [agones-project]: https://agones.dev/
+
+[suspend-from-java]: https://www.baeldung.com/kotlin/suspend-functions-from-java
+
+[semver-docs]: https://semver.org/lang/de/
+
+[security-policy]: SECURITY.md
+
+[code-of-conduct]: CODE_OF_CONDUCT.md
+
+[contributing-guide]: CONTRIBUTING.md
+
+[mit-license-doc]: https://choosealicense.com/licenses/mit/
