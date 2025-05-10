@@ -27,7 +27,7 @@ Agones mappings every time that there is an API change.
 * **Metadata Support** – Set and retrieve GameServer labels and annotations.
 * **Player Tracking** – Report player connections and manage player capacity.
 * **Counts and Lists** – Complete support for the Counters and Lists API.
-* **Customizable gRPC Runtime** – Use any compatible gRPC transport (Netty, Netty-shaded, etc.).
+* **Customizable gRPC Runtime** – Use any compatible gRPC transport (Netty, Netty-shaded, …).
 * **Actively Maintained & Tested** – CI with test coverage, SonarCloud quality metrics.
 * **Fully Typed Kotlin/Java API** – Clean, idiomatic Kotlin interfaces and types.
 
