@@ -1,4 +1,4 @@
-package net.justchunks.agones.client
+package net.scrayos.agones.client
 
 import io.kotest.core.config.AbstractProjectConfig
 

@@ -1,0 +1,19 @@
+name: Dependency Submission
+
+on: [push]
+
+permissions:
+  contents: write
+
+jobs:
+  dependency-submission:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout sources
+      uses: actions/checkout@v4
+      with:
+        lfs: true
+
+    - name: Generate and submit dependency graph
+      uses: gradle/actions/dependency-submission@v4

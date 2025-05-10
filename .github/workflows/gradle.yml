@@ -1,0 +1,37 @@
+name: Gradle Build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout sources
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        lfs: true
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'corretto'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Execute Gradle Build
+      run: ./gradlew build
+
+    - name: Execute Sonarqube Scan
+      run: ./gradlew koverXmlReport koverHtmlReport koverBinaryReport sonar
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    - name: Upload analysis results to GitHub
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: build/reports
+        wait-for-processing: true

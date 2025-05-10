@@ -1,10 +1,12 @@
 @file:Suppress("UnstableApiUsage")
 
 import com.google.protobuf.gradle.id
+import com.vanniktech.maven.publish.SonatypeHost
 import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
+import java.net.URI
 
 // provide general GAV coordinates
-group = "net.justchunks"
+group = "net.scrayos"
 version = "5.1.0-SNAPSHOT"
 description = "Agones Client SDK (Kotlin/Java)"
 
@@ -35,10 +37,10 @@ dependencies {
     // add gRPC dependencies that are necessary for compilation and execution
     implementation(libs.bundles.grpc)
 
-    // add coroutines for our coroutine based communication
+    // add coroutines for our coroutine-based communication
     implementation(libs.kotlin.coroutines.core)
 
-    // compile against the slf4j API for logging
+    // compile against the SLF4J API for logging
     compileOnly(libs.slf4j)
 
     // specify test dependencies
@@ -52,7 +54,7 @@ dependencies {
 
 // configure the kotlin extension
 kotlin {
-    // set the toolchain version that is required to build this project
+    // set the toolchain version required to build this project
     // replaces sourceCompatibility and targetCompatibility as it also sets these implicitly
     // https://kotlinlang.org/docs/gradle-configure-project.html#gradle-java-toolchains-support
     jvmToolchain(21)
@@ -98,7 +100,7 @@ protobuf {
     }
 }
 
-// configure testing suites within gradle check phase
+// configure testing suites within Gradle check phase
 testing {
     suites {
         val test by getting(JvmTestSuite::class) {
@@ -107,13 +109,53 @@ testing {
     }
 }
 
+// configure publishing for the sonatype portal
+mavenPublishing {
+    // add the central portal of Sonatype
+    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
+
+    // configure mandatory metadata for Maven Central
+    pom {
+        name.set("Agones Kotlin SDK")
+        description.set("An Agones Client SDK for Kotlin/Java.")
+        inceptionYear.set("2025")
+        url.set("https://github.com/scrayosnet/agones-kotlin-sdk/")
+        licenses {
+            license {
+                name.set("MIT License")
+                url.set("https://opensource.org/license/mit")
+                distribution.set("repo")
+            }
+        }
+        developers {
+            developer {
+                id.set("scrayos")
+                name.set("Joshua Dean Küpper")
+                url.set("https://github.com/scrayos/")
+            }
+        }
+        scm {
+            url.set("https://github.com/scrayosnet/agones-kotlin-sdk/")
+            connection.set("scm:git:git://github.com/scrayosnet/agones-kotlin-sdk.git")
+            developerConnection.set("scm:git:ssh://git@github.com/scrayosnet/agones-kotlin-sdk.git")
+        }
+    }
+
+    // sign all exported publications
+    signAllPublications()
+}
+
 // configure the publishing in the maven repository
 publishing {
     // define the repositories that shall be used for publishing
     repositories {
-        maven("https://gitlab.scrayos.net/api/v4/projects/116/packages/maven") {
-            name = "scrayosnet"
-            credentials(PasswordCredentials::class)
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/scrayosnet/agones-kotlin-sdk")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
         }
     }
 }
@@ -137,12 +179,43 @@ ktlint {
     }
 }
 
+// configure dokka
+dokka {
+    dokkaSourceSets {
+        configureEach {
+            moduleName.set("Agones Client SDK")
+            includes.from("packages.md")
+            jdkVersion.set(21)
+            samples.from("$projectDir/samples")
+
+            sourceLink {
+                localDirectory.set(projectDir.resolve("src"))
+                remoteUrl.set(URI("https://github.com/scrayosnet/agones-kotlin-sdk/tree/main/src"))
+                remoteLineSuffix.set("#L")
+            }
+
+            perPackageOption {
+                matchingRegex.set("agones.dev.sdk.*")
+                suppress = true
+            }
+
+            perPackageOption {
+                matchingRegex.set("grpc.gateway.protoc_gen_openapiv2.*")
+                suppress = true
+            }
+        }
+    }
+}
+
 // configure sonarqube plugin
 sonarqube {
     properties {
-        property("sonar.projectName", "agones-client-sdk")
+        property("sonar.projectKey", "scrayosnet_agones-kotlin-sdk")
+        property("sonar.organization", "scrayosnet")
+        property("sonar.projectName", "agones-kotlin-sdk")
         property("sonar.projectVersion", version)
         property("sonar.projectDescription", description!!)
+        property("sonar.host.url", "https://sonarcloud.io")
         property(
             "sonar.kotlin.ktlint.reportPaths",
             "build/reports/ktlint/ktlintKotlinScriptCheck/ktlintKotlinScriptCheck.xml," +

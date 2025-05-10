@@ -1,25 +1,34 @@
-package net.justchunks.agones.client
+package net.scrayos.agones.client
 
 import agones.dev.sdk.SDKGrpcKt
 import agones.dev.sdk.Sdk.Empty
 import agones.dev.sdk.Sdk.GameServer
 import agones.dev.sdk.alpha.Alpha
-import agones.dev.sdk.alpha.Alpha.PlayerID
+import agones.dev.sdk.alpha.count
+import agones.dev.sdk.alpha.playerID
+import agones.dev.sdk.beta.addListValueRequest
+import agones.dev.sdk.beta.counterUpdateRequest
+import agones.dev.sdk.beta.getCounterRequest
+import agones.dev.sdk.beta.getListRequest
+import agones.dev.sdk.beta.list
+import agones.dev.sdk.beta.removeListValueRequest
+import agones.dev.sdk.beta.updateCounterRequest
+import agones.dev.sdk.beta.updateListRequest
+import agones.dev.sdk.duration
+import agones.dev.sdk.keyValue
+import com.google.protobuf.Int64Value
+import com.google.protobuf.fieldMask
 import io.grpc.Channel
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
-import io.grpc.Status.Code
-import io.grpc.StatusException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import net.justchunks.agones.client.AgonesSdk.Companion.AGONES_SDK_HOST
-import net.justchunks.agones.client.AgonesSdk.Companion.META_KEY_PATTERN
-import net.justchunks.agones.client.GrpcAgonesSdk.Companion.AGONES_SDK_PORT_ENV_KEY
+import net.scrayos.agones.client.AgonesSdk.Companion.AGONES_SDK_HOST
+import net.scrayos.agones.client.AgonesSdk.Companion.META_KEY_PATTERN
+import net.scrayos.agones.client.GrpcAgonesSdk.Companion.AGONES_SDK_PORT_ENV_KEY
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.concurrent.TimeUnit
-import agones.dev.sdk.Sdk.Duration as AgonesDuration
-import agones.dev.sdk.Sdk.KeyValue as AgonesKeyValue
 import agones.dev.sdk.alpha.SDKGrpcKt as AlphaSDKGrpcKt
 import agones.dev.sdk.beta.SDKGrpcKt as BetaSDKGrpcKt
 
@@ -43,7 +52,7 @@ import agones.dev.sdk.beta.SDKGrpcKt as BetaSDKGrpcKt
 class GrpcAgonesSdk internal constructor(
     /** The host of the external interface of the sidecar SDK, that will be used to establish the connection. */
     val host: String = AGONES_SDK_HOST,
-    /** The port of the external interface of the sidecar SDK, that will be used to establish the connection. */
+    /** The port of the sidecar SDK's external interface that will be used to establish the connection. */
     val port: Int = AGONES_SDK_PORT,
 ) : AgonesSdk {
 
@@ -80,9 +89,9 @@ class GrpcAgonesSdk internal constructor(
 
         // call the endpoint with the duration and ignore the response
         stub.reserve(
-            AgonesDuration.newBuilder()
-                .setSeconds(seconds)
-                .build(),
+            duration {
+                this.seconds = seconds
+            },
         )
     }
 
@@ -104,10 +113,10 @@ class GrpcAgonesSdk internal constructor(
 
         // call the endpoint with the mapping and ignore the response
         stub.setLabel(
-            AgonesKeyValue.newBuilder()
-                .setKey(key)
-                .setValue(value)
-                .build(),
+            keyValue {
+                this.key = key
+                this.value = value
+            },
         )
     }
 
@@ -119,10 +128,10 @@ class GrpcAgonesSdk internal constructor(
 
         // call the endpoint with the mapping and ignore the response
         stub.setAnnotation(
-            AgonesKeyValue.newBuilder()
-                .setKey(key)
-                .setValue(value)
-                .build(),
+            keyValue {
+                this.key = key
+                this.value = value
+            },
         )
     }
 
@@ -136,9 +145,9 @@ class GrpcAgonesSdk internal constructor(
         return stub.watchGameServer(Empty.getDefaultInstance())
     }
 
-    override fun alpha(): AgonesSdk.Alpha = alphaSdk
-
     override fun beta(): AgonesSdk.Beta = betaSdk
+
+    override fun alpha(): AgonesSdk.Alpha = alphaSdk
 
     override fun close() {
         try {
@@ -161,6 +170,172 @@ class GrpcAgonesSdk internal constructor(
     }
 
     /**
+     * The [GrpcBeta] class provides gRPC-based implementations for all interfaces of the [Beta-Channel][AgonesSdk.Beta]
+     * of the [Agones SDK][AgonesSdk]. The implementation encapsulates the communication the external interface of the
+     * SDK and manages the corresponding stubs. This sub SDK operates on the same channel as the primary SDK and
+     * therefore shares its connections and related resources as well as its state.
+     *
+     * The creation of this object only creates the necessary stub and does not initiate any communication to the
+     * external SDK interface. It merely equips the SDK with means to communicate with the SDK, if requested by invoking
+     * any of the provided Beta interfaces.
+     *
+     * @param channel The [channel] of the primary [Agones SDK][AgonesSdk] that is used for the communication with the
+     * external network interface and that holds the related connections and resources.
+     */
+    class GrpcBeta(channel: Channel) : AgonesSdk.Beta {
+
+        /** The coroutine-based stub for the communication the external interface of the [Agones SDK][AgonesSdk]. */
+        private val stub: BetaSDKGrpcKt.SDKCoroutineStub = BetaSDKGrpcKt.SDKCoroutineStub(channel)
+
+        override suspend fun counterCount(name: String): Long {
+            // call the endpoint with the counter name and return the response
+            return stub.getCounter(
+                getCounterRequest {
+                    this.name = name
+                },
+            ).count
+        }
+
+        override suspend fun counterCount(name: String, value: Long) {
+            // call the endpoint with the counter name and the new count
+            stub.updateCounter(
+                updateCounterRequest {
+                    counterUpdateRequest = counterUpdateRequest {
+                        this.name = name
+                        this.count = Int64Value.of(value)
+                    }
+                },
+            )
+        }
+
+        override suspend fun incrementCounter(name: String) {
+            // call the endpoint with the counter name
+            stub.updateCounter(
+                updateCounterRequest {
+                    counterUpdateRequest = counterUpdateRequest {
+                        this.name = name
+                        this.countDiff = 1L
+                    }
+                },
+            )
+        }
+
+        override suspend fun decrementCounter(name: String) {
+            // call the endpoint with the counter name
+            stub.updateCounter(
+                updateCounterRequest {
+                    counterUpdateRequest = counterUpdateRequest {
+                        this.name = name
+                        this.countDiff = -1L
+                    }
+                },
+            )
+        }
+
+        override suspend fun counterCapacity(name: String): Long {
+            // call the endpoint with the counter name and return the response
+            return stub.getCounter(
+                getCounterRequest {
+                    this.name = name
+                },
+            ).capacity
+        }
+
+        override suspend fun counterCapacity(name: String, capacity: Long) {
+            // check that the capacity is valid
+            require(capacity >= 0) {
+                "The supplied capacity '$capacity' is not positive!"
+            }
+
+            // call the endpoint with the counter name and the new capacity
+            stub.updateCounter(
+                updateCounterRequest {
+                    counterUpdateRequest = counterUpdateRequest {
+                        this.name = name
+                        this.capacity = Int64Value.of(capacity)
+                    }
+                },
+            )
+        }
+
+        override suspend fun listSize(name: String): Int {
+            // call the endpoint with the list name and return the response
+            return stub.getList(
+                getListRequest {
+                    this.name = name
+                },
+            ).valuesCount
+        }
+
+        override suspend fun listValues(name: String): List<String> {
+            // call the endpoint with the list name and return the response
+            return stub.getList(
+                getListRequest {
+                    this.name = name
+                },
+            ).valuesList
+        }
+
+        override suspend fun listContains(name: String, value: String): Boolean {
+            // call the endpoint with the list name and return the response
+            return stub.getList(
+                getListRequest {
+                    this.name = name
+                },
+            ).valuesList.contains(value)
+        }
+
+        override suspend fun addListValue(name: String, value: String) {
+            // call the endpoint with the list name and the entry to be added
+            stub.addListValue(
+                addListValueRequest {
+                    this.name = name
+                    this.value = value
+                },
+            )
+        }
+
+        override suspend fun removeListValue(name: String, value: String) {
+            // call the endpoint with the list name and the entry to be removed
+            stub.removeListValue(
+                removeListValueRequest {
+                    this.name = name
+                    this.value = value
+                },
+            )
+        }
+
+        override suspend fun listCapacity(name: String): Long {
+            // call the endpoint with the list name and return the response
+            return stub.getList(
+                getListRequest {
+                    this.name = name
+                },
+            ).capacity
+        }
+
+        override suspend fun listCapacity(name: String, capacity: Long) {
+            // check that the capacity is valid
+            require(capacity >= 0) {
+                "The supplied capacity '$capacity' is not positive!"
+            }
+
+            // call the endpoint with the list name and new capacity
+            stub.updateList(
+                updateListRequest {
+                    list = list {
+                        this.name = name
+                        this.capacity = capacity
+                    }
+                    updateMask = fieldMask {
+                        paths.add("capacity")
+                    }
+                },
+            )
+        }
+    }
+
+    /**
      * The [GrpcAlpha] class provides gRPC-based implementations for all interfaces of the [Alpha-Channel][AgonesSdk.Alpha]
      * of the [Agones SDK][AgonesSdk]. The implementation encapsulates the communication the external interface of the
      * SDK and manages the corresponding stubs. This sub SDK operates on the same channel as the primary SDK and
@@ -179,32 +354,20 @@ class GrpcAgonesSdk internal constructor(
         private val stub: AlphaSDKGrpcKt.SDKCoroutineStub = AlphaSDKGrpcKt.SDKCoroutineStub(channel)
 
         override suspend fun playerConnect(playerId: String): Boolean {
-            // capacity overflows throw exceptions, so we need to handle them
-            try {
-                return stub.playerConnect(
-                    PlayerID.newBuilder()
-                        .setPlayerID(playerId)
-                        .build(),
-                ).bool
-            } catch (ex: StatusException) {
-                // if the player limit is exhausted, convert the exception
-                if (ex.status.code == Code.UNKNOWN &&
-                    ex.status.description == "Players are already at capacity"
-                ) {
-                    throw IllegalStateException("Player capacity is exhausted!", ex)
-                }
-
-                // rethrow the original exception in every other case
-                throw ex
-            }
+            // call the endpoint with the player ID and return the response
+            return stub.playerConnect(
+                playerID {
+                    this.playerID = playerId
+                },
+            ).bool
         }
 
         override suspend fun playerDisconnect(playerId: String): Boolean {
             // call the endpoint with the player ID and return the response
             return stub.playerDisconnect(
-                PlayerID.newBuilder()
-                    .setPlayerID(playerId)
-                    .build(),
+                playerID {
+                    this.playerID = playerId
+                },
             ).bool
         }
 
@@ -217,9 +380,9 @@ class GrpcAgonesSdk internal constructor(
         override suspend fun isPlayerConnected(playerId: String): Boolean {
             // call the endpoint with the player ID and return the response
             return stub.isPlayerConnected(
-                PlayerID.newBuilder()
-                    .setPlayerID(playerId)
-                    .build(),
+                playerID {
+                    this.playerID = playerId
+                },
             ).bool
         }
 
@@ -245,40 +408,21 @@ class GrpcAgonesSdk internal constructor(
 
             // call the endpoint with the count and ignore the response
             stub.setPlayerCapacity(
-                Alpha.Count.newBuilder()
-                    .setCount(capacity)
-                    .build(),
+                count {
+                    count = capacity
+                },
             )
         }
     }
 
-    /**
-     * The [GrpcBeta] class provides gRPC-based implementations for all interfaces of the [Beta-Channel][AgonesSdk.Beta]
-     * of the [Agones SDK][AgonesSdk]. The implementation encapsulates the communication the external interface of the
-     * SDK and manages the corresponding stubs. This sub SDK operates on the same channel as the primary SDK and
-     * therefore shares its connections and related resources as well as its state.
-     *
-     * The creation of this object only creates the necessary stub and does not initiate any communication to the
-     * external SDK interface. It merely equips the SDK with means to communicate with the SDK, if requested by invoking
-     * any of the provided Beta interfaces.
-     *
-     * @param channel The [channel] of the primary [Agones SDK][AgonesSdk] that is used for the communication with the
-     * external network interface and that holds the related connections and resources.
-     */
-    class GrpcBeta(channel: Channel) : AgonesSdk.Beta {
-
-        /** The coroutine-based stub for the communication the external interface of the [Agones SDK][AgonesSdk]. */
-        private val stub: BetaSDKGrpcKt.SDKCoroutineStub = BetaSDKGrpcKt.SDKCoroutineStub(channel)
-    }
-
     companion object {
-        /** The logger that will be utilized to perform any logging for the methods of this class. */
+        /** The logger that will be used to perform any logging for the methods of this class. */
         private val logger = LoggerFactory.getLogger(GrpcAgonesSdk::class.java)
 
         /** The default port, that will be used to communicate with the gRPC server of the sidecar SDK. */
         private const val DEFAULT_AGONES_SDK_PORT: Int = 9357
 
-        /** The key of the environment variable, that can be used to retrieve the assigned gRPC port of the SDK. */
+        /** The key of the environment variable that can be used to retrieve the assigned gRPC port of the SDK. */
         private const val AGONES_SDK_PORT_ENV_KEY = "AGONES_SDK_GRPC_PORT"
 
         /** The [duration][Duration], that will be waited at maximum for the successful shutdown of the channel. */
@@ -287,9 +431,9 @@ class GrpcAgonesSdk internal constructor(
         /**
          * The gRPC port of the Agones SDK sidecar from within a container of the same pod for the communication.
          *
-         * In order to get the effective port, it will be first tried to extract this port through an environment
-         * variable with the key [AGONES_SDK_PORT_ENV_KEY]. If this variable is not set, [DEFAULT_AGONES_SDK_PORT] will
-         * be used instead, which is the default gRPC port for any installation of Agones.
+         * To get the effective port, it will be first tried to extract this port through an environment variable with
+         * the key [AGONES_SDK_PORT_ENV_KEY]. If this variable is not set, [DEFAULT_AGONES_SDK_PORT] will be used
+         * instead, which is the default gRPC port for any installation of Agones.
          */
         val AGONES_SDK_PORT: Int
             get() {

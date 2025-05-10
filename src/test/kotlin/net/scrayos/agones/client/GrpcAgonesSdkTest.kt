@@ -1,4 +1,4 @@
-package net.justchunks.agones.client
+package net.scrayos.agones.client
 
 import agones.dev.sdk.Sdk.GameServer
 import io.grpc.Status
@@ -14,11 +14,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
-import net.justchunks.agones.client.AgonesSdk.Alpha
-import net.justchunks.agones.client.AgonesSdk.Companion.METADATA_KEY_PREFIX
+import net.scrayos.agones.client.AgonesSdk.Alpha
+import net.scrayos.agones.client.AgonesSdk.Beta
+import net.scrayos.agones.client.AgonesSdk.Companion.METADATA_KEY_PREFIX
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -39,13 +39,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-@Disabled("Integration tests do not work in CI/CD yet")
 @Testcontainers
 internal class GrpcAgonesSdkTest {
 
     @Container
     private val sdkContainer: GenericContainer<*> = GenericContainer(
-        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.45.0"),
+        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.49.0"),
     )
         .withCommand(
             "--local",
@@ -53,7 +52,7 @@ internal class GrpcAgonesSdkTest {
             "--sdk-name=AgonesClientSDK",
             "--grpc-port=$GRPC_PORT",
             "--http-port=$HTTP_PORT",
-            "--feature-gates=PlayerTracking=true&CountsAndLists=true",
+            "--feature-gates=PlayerTracking=true&SidecarContainers=true",
         )
         .withExposedPorts(GRPC_PORT, HTTP_PORT)
         .waitingFor(
@@ -349,6 +348,27 @@ internal class GrpcAgonesSdkTest {
     }
 
     @Test
+    @DisplayName("Should return valid Beta channel")
+    fun shouldReturnBetaSdk() {
+        // given
+        val betaSdk: Beta = sdk.beta()
+
+        // then
+        assertNotNull(betaSdk)
+    }
+
+    @Test
+    @DisplayName("Should return same Beta channel every time")
+    fun shouldReturnSameBetaSdk() {
+        // given
+        val betaSdk1: Beta = sdk.beta()
+        val betaSdk2: Beta = sdk.beta()
+
+        // then
+        assertEquals(betaSdk1, betaSdk2)
+    }
+
+    @Test
     @DisplayName("Should return valid Alpha channel")
     fun shouldReturnAlphaSdk() {
         // given
@@ -369,25 +389,475 @@ internal class GrpcAgonesSdkTest {
         assertEquals(alphaSdk1, alphaSdk2)
     }
 
-    @Test
-    @DisplayName("Should return valid Beta channel")
-    fun shouldReturnBetaSdk() {
-        // given
-        val betaSdk: AgonesSdk.Beta = sdk.beta()
+    @Nested
+    inner class BetaTest {
 
-        // then
-        assertNotNull(betaSdk)
-    }
+        @Test
+        @DisplayName("Should get counter count")
+        fun shouldGetCounterCount() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
 
-    @Test
-    @DisplayName("Should return same Beta channel every time")
-    fun shouldReturnSameBetaSdk() {
-        // given
-        val betaSdk1: AgonesSdk.Beta = sdk.beta()
-        val betaSdk2: AgonesSdk.Beta = sdk.beta()
+            // when, then
+            assertEquals(1, betaSdk.counterCount("rooms"))
+        }
 
-        // then
-        assertEquals(betaSdk1, betaSdk2)
+        @Test
+        @DisplayName("Should not get unknown counter count")
+        fun shouldNotGetUnknownCounterCount() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.counterCount("invalid")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid Counter not found", ex.status.description)
+        }
+
+        @ParameterizedTest(name = "#counterCount(\"rooms\", {0})")
+        @ValueSource(longs = [3, 5, 7, 9])
+        @DisplayName("Should set counter count")
+        fun shouldSetCounterCount(count: Long) = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when
+            betaSdk.counterCount("rooms", count)
+
+            // then
+            assertEquals(count, betaSdk.counterCount("rooms"))
+        }
+
+        @Test
+        @DisplayName("Should throw on set unknown counter count")
+        fun shouldThrowOnSetUnknownCounterCount() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.counterCount("invalid")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid Counter not found", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should increment counter")
+        fun shouldIncrementCounter() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            assertEquals(1, betaSdk.counterCount("rooms"))
+            betaSdk.incrementCounter("rooms")
+            assertEquals(2, betaSdk.counterCount("rooms"))
+            betaSdk.incrementCounter("rooms")
+            assertEquals(3, betaSdk.counterCount("rooms"))
+            betaSdk.incrementCounter("rooms")
+            assertEquals(4, betaSdk.counterCount("rooms"))
+        }
+
+        @Test
+        @DisplayName("Should throw on increment unknown counter")
+        fun shouldThrowOnIncrementUnknownCounter() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.counterCount("invalid")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid Counter not found", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should throw on increment counter beyond capacity")
+        fun shouldThrowOnIncrementCounterBeyondCapacity() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+            betaSdk.counterCapacity("rooms", 2)
+            betaSdk.decrementCounter("rooms")
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.incrementCounter("invalid")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid Counter not found", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should increment counter")
+        fun shouldDecrementCounter() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+            betaSdk.counterCount("rooms", 10)
+
+            // when, then
+            assertEquals(10, betaSdk.counterCount("rooms"))
+            betaSdk.decrementCounter("rooms")
+            assertEquals(9, betaSdk.counterCount("rooms"))
+            betaSdk.decrementCounter("rooms")
+            assertEquals(8, betaSdk.counterCount("rooms"))
+            betaSdk.decrementCounter("rooms")
+            assertEquals(7, betaSdk.counterCount("rooms"))
+        }
+
+        @Test
+        @DisplayName("Should throw on increment unknown counter")
+        fun shouldThrowOnDecrementUnknownCounter() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.counterCount("invalid", 7)
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid Counter not found", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should throw on decrement counter below zero")
+        fun shouldThrowOnDecrementCounterBelowZero() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+            betaSdk.decrementCounter("rooms")
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.decrementCounter("rooms")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals(
+                "out of range. Count must be within range [0,Capacity]. Found Count: -1, Capacity: 10",
+                ex.status.description,
+            )
+        }
+
+        @Test
+        @DisplayName("Should get counter capacity")
+        fun shouldGetCounterCapacity() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            assertEquals(10, betaSdk.counterCapacity("rooms"))
+        }
+
+        @Test
+        @DisplayName("Should not get unknown counter capacity")
+        fun shouldThrowOnGetUnknownCounterCapacity() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.counterCapacity("invalid")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid Counter not found", ex.status.description)
+        }
+
+        @ParameterizedTest(name = "#counterCapacity(\"rooms\", {0})")
+        @ValueSource(longs = [10, 15, 100, 1000, 10000])
+        @DisplayName("Should set counter capacity")
+        fun shouldSetCounterCapacity(capacity: Long) = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when
+            betaSdk.counterCapacity("rooms", capacity)
+
+            // then
+            assertEquals(capacity, betaSdk.counterCapacity("rooms"))
+        }
+
+        @ParameterizedTest(name = "#counterCapacity(\"rooms\", {0})")
+        @ValueSource(longs = [-1L, -100L, -1337L, -100000L])
+        @DisplayName("Should throw on set negative counter capacity")
+        fun shouldThrowOnSetNegativeCounterCapacity(capacity: Long) = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<IllegalArgumentException> {
+                betaSdk.counterCapacity("rooms", capacity)
+            }
+            assertEquals("The supplied capacity '$capacity' is not positive!", ex.message)
+        }
+
+        @Test
+        @DisplayName("Should throw on set unknown counter capacity")
+        fun shouldThrowOnSetUnknownCounterCapacity() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.counterCapacity("invalid", 10)
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid Counter not found", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should get list size")
+        fun shouldGetListSize() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            assertEquals(3, betaSdk.listSize("players"))
+        }
+
+        @Test
+        @DisplayName("Should not get unknown list size")
+        fun shouldNotGetUnknownListSize() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.listSize("invalid")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid List not found", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should get list values")
+        fun shouldGetListValues() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when
+            val values = betaSdk.listValues("players")
+            // then
+            assertNotNull(values)
+            assertContains(values, "test0")
+            assertContains(values, "test1")
+            assertContains(values, "test2")
+        }
+
+        @Test
+        @DisplayName("Should not get unknown list values")
+        fun shouldNotGetUnknownListValues() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.listValues("invalid")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid List not found", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should contain list value")
+        fun shouldContainListValue() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when
+            val contains = betaSdk.listContains("players", "test0")
+
+            // then
+            assertNotNull(contains)
+            assertTrue(contains)
+        }
+
+        @Test
+        @DisplayName("Should not contain missing list value")
+        fun shouldNotContainMissingListValue() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when
+            val contains = betaSdk.listContains("players", "test4")
+
+            // then
+            assertNotNull(contains)
+            assertFalse(contains)
+        }
+
+        @Test
+        @DisplayName("Should not contain list value for unknown list")
+        fun shouldNotContainListValueForUnknownList() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.listContains("invalid", "test0")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid List not found", ex.status.description)
+        }
+
+        @ParameterizedTest(name = "#addListValue(\"players\", {0})")
+        @ValueSource(strings = ["test3", "agones", "justchunks"])
+        @DisplayName("Should add list value")
+        fun shouldAddListValue(value: String) = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when
+            betaSdk.addListValue("players", value)
+
+            // then
+            assertEquals(4, betaSdk.listSize("players"))
+            val values = betaSdk.listValues("players")
+            assertNotNull(values)
+            assertContains(values, value)
+        }
+
+        @Test
+        @DisplayName("Should not add existing list value")
+        fun shouldThrowOnAddExistingListValue() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.addListValue("players", "test0")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("already exists. Value: test0 already in List: players", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should throw on add list value for unknown list")
+        fun shouldThrowOnAddListValueForUnknownList() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.addListValue("invalid", "test")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid List not found", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should throw on add list value for list at capacity")
+        fun shouldThrowOnAddListValueForListAtCapacity() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+            betaSdk.listCapacity("players", 3)
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.addListValue("players", "test3")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals(
+                "out of range. No available capacity. Current Capacity: 3, List Size: 3",
+                ex.status.description,
+            )
+        }
+
+        @Test
+        @DisplayName("Should remove list value")
+        fun shouldRemoveListValue() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when
+            betaSdk.removeListValue("players", "test0")
+
+            // then
+            assertEquals(2, betaSdk.listSize("players"))
+            val values = betaSdk.listValues("players")
+            assertNotNull(values)
+            assertFalse(values.contains("test0"))
+        }
+
+        @Test
+        @DisplayName("Should not remove missing list value")
+        fun shouldThrowOnRemoveMissingListValue() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.removeListValue("players", "test3")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. Value: test3 not found in List: players", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should throw on remove list value for unknown list")
+        fun shouldThrowOnRemoveListValueForUnknownList() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.removeListValue("invalid", "test0")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid List not found", ex.status.description)
+        }
+
+        @Test
+        @DisplayName("Should get list capacity")
+        fun shouldGetListCapacity() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            assertEquals(100, betaSdk.listCapacity("players"))
+        }
+
+        @Test
+        @DisplayName("Should not get unknown list capacity")
+        fun shouldNotGetUnknownListCapacity() = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<StatusException> {
+                betaSdk.listCapacity("invalid")
+            }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("not found. invalid List not found", ex.status.description)
+        }
+
+        @ParameterizedTest(name = "#listCapacity(\"players\", {0})")
+        @ValueSource(longs = [10, 15, 100, 777, 1000])
+        @DisplayName("Should set list capacity")
+        fun shouldSetListCapacity(capacity: Long) = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when
+            betaSdk.listCapacity("players", capacity)
+
+            // then
+            assertEquals(capacity, betaSdk.listCapacity("players"))
+        }
+
+        @ParameterizedTest(name = "#listCapacity(\"players\", {0})")
+        @ValueSource(longs = [-1L, -100L, -1337L, -100000L])
+        @DisplayName("Should throw on set negative list capacity")
+        fun shouldThrowOnSetNegativeListCapacity(capacity: Long) = runTest {
+            // given
+            val betaSdk: Beta = sdk.beta()
+
+            // when, then
+            val ex = assertFailsWith<IllegalArgumentException> {
+                betaSdk.listCapacity("players", capacity)
+            }
+            assertEquals("The supplied capacity '$capacity' is not positive!", ex.message)
+        }
     }
 
     @Nested
@@ -415,7 +885,7 @@ internal class GrpcAgonesSdkTest {
         }
 
         @Test
-        @DisplayName("Should throw ISE on player connect above capacity limit")
+        @DisplayName("Should throw on player connect above capacity limit")
         fun shouldThrowOnConnectPlayerOnCapacityLimit() = runTest {
             // given
             val alphaSdk: Alpha = sdk.alpha()
@@ -425,9 +895,11 @@ internal class GrpcAgonesSdkTest {
             alphaSdk.playerCapacity(0)
 
             // then
-            assertFailsWith<IllegalStateException> {
+            val ex = assertFailsWith<StatusException> {
                 alphaSdk.playerConnect(playerId)
             }
+            assertEquals(Status.Code.UNKNOWN, ex.status.code)
+            assertEquals("Players are already at capacity", ex.status.description)
         }
 
         @Test
@@ -610,11 +1082,6 @@ internal class GrpcAgonesSdkTest {
             // then
             assertEquals(64L, playerCapacity)
         }
-    }
-
-    @Nested
-    inner class BetaTest {
-        // no tests so for beta far
     }
 
     private fun containsLogLine(logMessagePart: String, waitMs: Long = 0, count: Int = 1): Boolean =
