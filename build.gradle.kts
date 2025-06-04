@@ -12,7 +12,6 @@ description = "Agones Client SDK (Kotlin/Java)"
 
 // hook the plugins for the builds
 plugins {
-    alias(libs.plugins.idea)
     alias(libs.plugins.javaLibrary)
     alias(libs.plugins.kotlin)
     alias(libs.plugins.dokka)
