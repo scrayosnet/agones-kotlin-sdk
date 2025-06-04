@@ -45,6 +45,7 @@ dependencies {
 
     // specify test dependencies
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.mockk)
     testImplementation(libs.bundles.kotest)
     testImplementation(libs.bundles.testcontainers)
     testImplementation(libs.kotlinx.serialization.json)
@@ -244,5 +245,11 @@ tasks {
         // exclude the generated protobuf files
         exclude("agones/dev/sdk/**")
         exclude("grpc/gateway/protoc_gen_openapiv2/**")
+    }
+
+    withType<Test> {
+        configureEach {
+            jvmArgs("--add-opens=java.base/java.util=ALL-UNNAMED")
+        }
     }
 }

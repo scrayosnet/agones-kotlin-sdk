@@ -1,10 +1,15 @@
 package net.scrayos.agones.client
 
 import agones.dev.sdk.Sdk.GameServer
+import io.grpc.ManagedChannel
 import io.grpc.Status
 import io.grpc.StatusException
+import io.kotest.extensions.system.withEnvironment
 import io.kotest.matchers.maps.shouldHaveKey
 import io.kotest.matchers.nulls.shouldBeNull
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectIndexed
 import kotlinx.coroutines.flow.flowOf
@@ -338,6 +343,28 @@ internal class GrpcAgonesSdkTest {
     }
 
     @Test
+    @DisplayName("Close should force shutdown when graceful shutdown times out")
+    fun closeShouldForceOnTimeout() {
+        // setup
+        val mockChannel = mockk<ManagedChannel>()
+        every { mockChannel.shutdown() } returns mockChannel
+        every { mockChannel.awaitTermination(any(), any()) } returns false
+        every { mockChannel.shutdownNow() } returns mockChannel
+
+        // given
+        val sdk = GrpcAgonesSdk()
+        val channelField = sdk::class.java.getDeclaredField("channel")
+        channelField.isAccessible = true
+        channelField.set(sdk, mockChannel)
+
+        // when
+        sdk.close()
+
+        // then
+        verify { mockChannel.shutdownNow() }
+    }
+
+    @Test
     @DisplayName("Automatic port should fall back to default port")
     fun automaticPortShouldFallBack() {
         // when
@@ -345,6 +372,33 @@ internal class GrpcAgonesSdkTest {
 
         // then
         assertEquals(GRPC_PORT, defaultPort)
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException on invalid port environment variable")
+    fun automaticPortShouldThrowOnInvalidPortEnvironmentVariable() {
+        // when, then
+        val exception = assertFailsWith<IllegalArgumentException> {
+            withEnvironment("AGONES_SDK_GRPC_PORT", "invalid_port") {
+                GrpcAgonesSdk.AGONES_SDK_PORT
+            }
+        }
+        assertEquals(
+            "The supplied environment variable for the port did not contain a valid number.",
+            exception.message,
+        )
+    }
+
+    @Test
+    @DisplayName("Should get port from environment variable")
+    fun automaticPortShouldUseEnvironmentVariable() {
+        // when
+        val port = withEnvironment("AGONES_SDK_GRPC_PORT", "12") {
+            GrpcAgonesSdk.AGONES_SDK_PORT
+        }
+
+        // then
+        assertEquals(12, port)
     }
 
     @Test

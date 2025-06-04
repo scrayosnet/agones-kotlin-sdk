@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.1.20"
+kotlin = "2.1.21"
 ktlint = "1.5.0"
 junit = "5.12.2"
 kotest-core = "5.9.1"
@@ -12,6 +12,7 @@ slf4j = "2.0.17"
 log4j = "2.24.3"
 kotlinx-serialization = "1.8.1"
 testcontainers = "1.21.0"
+mockk = "1.14.2"
 
 [libraries]
 protobuf-kotlin = { group = "com.google.protobuf", name = "protobuf-kotlin", version.ref = "protobuf" }
@@ -34,6 +35,7 @@ protoc-genJava = { group = "io.grpc", name = "protoc-gen-grpc-java", version.ref
 protoc-genKotlin = { group = "io.grpc", name = "protoc-gen-grpc-kotlin", version.ref = "protoc-kotlin" }
 testcontainers-core = { group = "org.testcontainers", name = "testcontainers", version.ref = "testcontainers" }
 testcontainers-junit = { group = "org.testcontainers", name = "junit-jupiter", version.ref = "testcontainers" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 
 [bundles]
 kotest = ["kotest-runner", "kotest-testcontainers", "kotest-assertions-json"]
@@ -48,6 +50,6 @@ kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 dokka = { id = "org.jetbrains.dokka", version = "2.0.0" }
 kover = { id = "org.jetbrains.kotlinx.kover", version = "0.9.1" }
 protobuf = { id = "com.google.protobuf", version = "0.9.5" }
-sonarqube = { id = "org.sonarqube", version = "6.1.0.5360" }
+sonarqube = { id = "org.sonarqube", version = "6.2.0.5505" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "12.2.0" }
-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.31.0" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.32.0" }
