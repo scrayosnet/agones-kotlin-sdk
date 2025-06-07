@@ -49,7 +49,7 @@ import agones.dev.sdk.beta.SDKGrpcKt as BetaSDKGrpcKt
  * @param port The port, under which the gRPC server of the sidecar SDK can be reached and that will therefore be used
  * to establish the connection.
  */
-class GrpcAgonesSdk internal constructor(
+class GrpcAgonesSdk(
     /** The host of the external interface of the sidecar SDK, that will be used to establish the connection. */
     val host: String = AGONES_SDK_HOST,
     /** The port of the sidecar SDK's external interface that will be used to establish the connection. */
