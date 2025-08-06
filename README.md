@@ -45,7 +45,7 @@ After your instance is up and running, you have to add Agones Kotlin SDK to your
 ```kotlin
 dependencies {
     // make sure to specify the latest version
-    api("net.scrayos", "agones-client-sdk", "5.1.0-SNAPSHOT")
+    api("net.scrayos", "agones-client-sdk", "5.1.2-SNAPSHOT")
 
     // choose your own gRPC runtime or use an existing one
     runtimeOnly("io.grpc", "grpc-netty", "1.72.0")
