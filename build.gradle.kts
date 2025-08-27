@@ -45,6 +45,7 @@ dependencies {
     testImplementation(libs.kotlin.test)
     testImplementation(libs.mockk)
     testImplementation(libs.bundles.kotest)
+    testImplementation(libs.kotlin.coroutines.test)
     testImplementation(libs.bundles.testcontainers)
     testImplementation(libs.kotlinx.serialization.json)
     testImplementation(libs.bundles.log4j)

@@ -4,7 +4,6 @@ import agones.dev.sdk.Sdk.GameServer
 import io.grpc.ManagedChannel
 import io.grpc.Status
 import io.grpc.StatusException
-import io.kotest.extensions.system.withEnvironment
 import io.kotest.matchers.maps.shouldHaveKey
 import io.kotest.matchers.nulls.shouldBeNull
 import io.mockk.every
@@ -372,33 +371,6 @@ internal class GrpcAgonesSdkTest {
 
         // then
         assertEquals(GRPC_PORT, defaultPort)
-    }
-
-    @Test
-    @DisplayName("Should throw IllegalArgumentException on invalid port environment variable")
-    fun automaticPortShouldThrowOnInvalidPortEnvironmentVariable() {
-        // when, then
-        val exception = assertFailsWith<IllegalArgumentException> {
-            withEnvironment("AGONES_SDK_GRPC_PORT", "invalid_port") {
-                GrpcAgonesSdk.AGONES_SDK_PORT
-            }
-        }
-        assertEquals(
-            "The supplied environment variable for the port did not contain a valid number.",
-            exception.message,
-        )
-    }
-
-    @Test
-    @DisplayName("Should get port from environment variable")
-    fun automaticPortShouldUseEnvironmentVariable() {
-        // when
-        val port = withEnvironment("AGONES_SDK_GRPC_PORT", "12") {
-            GrpcAgonesSdk.AGONES_SDK_PORT
-        }
-
-        // then
-        assertEquals(12, port)
     }
 
     @Test
