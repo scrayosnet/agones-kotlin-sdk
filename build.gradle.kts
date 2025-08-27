@@ -1,7 +1,6 @@
 @file:Suppress("UnstableApiUsage")
 
 import com.google.protobuf.gradle.id
-import com.vanniktech.maven.publish.SonatypeHost
 import org.jlleitschuh.gradle.ktlint.reporter.ReporterType
 import java.net.URI
 
@@ -112,7 +111,7 @@ testing {
 // configure publishing for the sonatype portal
 mavenPublishing {
     // add the central portal of Sonatype
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
+    publishToMavenCentral(automaticRelease = true)
 
     // configure mandatory metadata for Maven Central
     pom {
