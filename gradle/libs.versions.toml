@@ -2,7 +2,7 @@
 kotlin = "2.2.10"
 ktlint = "1.7.1"
 junit = "5.13.2"
-kotest-core = "6.0.1"
+kotest-core = "6.0.3"
 kotest-testcontainers = "2.0.2"
 protobuf = "4.31.1"
 protoc-java = "1.73.0"
