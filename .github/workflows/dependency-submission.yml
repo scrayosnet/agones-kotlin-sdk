@@ -11,9 +11,9 @@ jobs:
     steps:
 
     - name: Checkout sources
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         lfs: true
 
     - name: Generate and submit dependency graph
-      uses: gradle/actions/dependency-submission@v4
+      uses: gradle/actions/dependency-submission@v5

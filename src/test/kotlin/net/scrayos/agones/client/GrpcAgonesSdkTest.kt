@@ -48,7 +48,7 @@ internal class GrpcAgonesSdkTest {
 
     @Container
     private val sdkContainer: GenericContainer<*> = GenericContainer(
-        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.49.0"),
+        DockerImageName.parse("us-docker.pkg.dev/agones-images/release/agones-sdk:1.56.0"),
     )
         .withCommand(
             "--local",
@@ -858,7 +858,7 @@ internal class GrpcAgonesSdkTest {
         }
 
         @ParameterizedTest(name = "#listCapacity(\"players\", {0})")
-        @ValueSource(longs = [10, 15, 100, 777, 1000])
+        @ValueSource(longs = [0, 10, 15, 100])
         @DisplayName("Should set list capacity")
         fun shouldSetListCapacity(capacity: Long) = runTest {
             // given
