@@ -105,6 +105,16 @@ testing {
     suites {
         val test by getting(JvmTestSuite::class) {
             useJUnitJupiter(libs.versions.junit)
+
+            targets {
+                all {
+                    testTask.configure {
+                        jvmArgs(
+                            "--add-opens=java.base/java.util=ALL-UNNAMED",
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -244,11 +254,5 @@ tasks {
         // exclude the generated protobuf files
         exclude("agones/dev/sdk/**")
         exclude("grpc/gateway/protoc_gen_openapiv2/**")
-    }
-
-    withType<Test> {
-        configureEach {
-            jvmArgs("--add-opens=java.base/java.util=ALL-UNNAMED")
-        }
     }
 }

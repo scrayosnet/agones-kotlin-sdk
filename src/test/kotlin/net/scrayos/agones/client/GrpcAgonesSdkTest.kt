@@ -4,6 +4,7 @@ import agones.dev.sdk.Sdk.GameServer
 import io.grpc.ManagedChannel
 import io.grpc.Status
 import io.grpc.StatusException
+import io.kotest.extensions.system.withEnvironment
 import io.kotest.matchers.maps.shouldHaveKey
 import io.kotest.matchers.nulls.shouldBeNull
 import io.mockk.every
@@ -262,7 +263,7 @@ internal class GrpcAgonesSdkTest {
 
         // then
         assertNotNull(gameServer)
-        assertTrue(gameServer.objectMeta.name == "local")
+        assertEquals(gameServer.objectMeta.name, "local")
     }
 
     @Test
@@ -273,7 +274,7 @@ internal class GrpcAgonesSdkTest {
 
         // then
         updates.take(1).collect {
-            assertTrue(it.objectMeta.name == "local")
+            assertEquals(it.objectMeta.name, "local")
         }
     }
 
@@ -289,7 +290,7 @@ internal class GrpcAgonesSdkTest {
         // when, then
         var iteration = 0
         updates.take(count + 1).collectIndexed { key, value ->
-            assertTrue(value.objectMeta.name == "local")
+            assertEquals(value.objectMeta.name, "local")
             val labelMap = value.objectMeta.labelsMap
             assertEquals(iteration + 1, labelMap.size)
             if (key < count) {
@@ -364,13 +365,63 @@ internal class GrpcAgonesSdkTest {
     }
 
     @Test
-    @DisplayName("Automatic port should fall back to default port")
-    fun automaticPortShouldFallBack() {
-        // when
-        val defaultPort: Int = GrpcAgonesSdk.AGONES_SDK_PORT
+    @DisplayName("Should return default port when env var not set")
+    fun shouldReturnDefaultPort() {
+        withEnvironment(mapOf()) {
+            // when
+            val defaultPort: Int = GrpcAgonesSdk.AGONES_SDK_PORT
 
-        // then
-        assertEquals(GRPC_PORT, defaultPort)
+            // then
+            assertEquals(GRPC_PORT, defaultPort)
+        }
+    }
+
+    @Test
+    @DisplayName("Should parse port from env var when set")
+    fun shouldParsePortFromEnvVar() {
+        withEnvironment("AGONES_SDK_GRPC_PORT", "12345") {
+            // when
+            val port: Int = GrpcAgonesSdk.AGONES_SDK_PORT
+
+            // then
+            assertEquals(12345, port)
+        }
+    }
+
+    @Test
+    @DisplayName("Should throw IAE when env var contains non-numeric value")
+    fun shouldThrowWhenEnvVarContainsInvalidNumber() {
+        withEnvironment("AGONES_SDK_GRPC_PORT", "not-a-number") {
+            val exception = assertFailsWith<IllegalArgumentException> {
+                GrpcAgonesSdk.AGONES_SDK_PORT
+            }
+            assertEquals(
+                "The supplied environment variable for the port did not contain a valid number.",
+                exception.message,
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("Should throw IAE when env var contains empty string")
+    fun shouldThrowWhenEnvVarIsEmpty() {
+        withEnvironment("AGONES_SDK_GRPC_PORT", "") {
+            // when, then
+            assertFailsWith<IllegalArgumentException> {
+                GrpcAgonesSdk.AGONES_SDK_PORT
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Should throw IAE when env var contains alphanumeric")
+    fun shouldThrowWhenEnvVarContainsAlphanumeric() {
+        withEnvironment("AGONES_SDK_GRPC_PORT", "123abc") {
+            // when, then
+            assertFailsWith<IllegalArgumentException> {
+                GrpcAgonesSdk.AGONES_SDK_PORT
+            }
+        }
     }
 
     @Test
