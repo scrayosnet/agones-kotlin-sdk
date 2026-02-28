@@ -45,10 +45,10 @@ After your instance is up and running, you have to add Agones Kotlin SDK to your
 ```kotlin
 dependencies {
     // make sure to specify the latest version
-    api("net.scrayos", "agones-client-sdk", "5.1.2-SNAPSHOT")
+    api("net.scrayos", "agones-client-sdk", "5.2.0")
 
     // choose your own gRPC runtime or use an existing one
-    runtimeOnly("io.grpc", "grpc-netty", "1.72.0")
+    runtimeOnly("io.grpc", "grpc-netty", "1.79.0")
 }
 ```
 
@@ -89,9 +89,10 @@ sdk.ready()
 AgonesSdk sdk = new GrpcAgonesSdk();
 
 // any request can be performed on the sdk while it is open
-sdk.
-
-ready();
+CompletableFuture<Unit> future = BuildersKt.runBlocking(
+        EmptyCoroutineContext.INSTANCE,
+        (scope, continuation) -> sdk.ready(continuation)
+);
 ```
 
 ## Reporting Security Issues
