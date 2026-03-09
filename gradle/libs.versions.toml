@@ -50,5 +50,5 @@ dokka = { id = "org.jetbrains.dokka", version = "2.1.0" }
 kover = { id = "org.jetbrains.kotlinx.kover", version = "0.9.7" }
 protobuf = { id = "com.google.protobuf", version = "0.9.6" }
 sonarqube = { id = "org.sonarqube", version = "7.2.2.6593" }
-ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "14.0.1" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "14.1.0" }
 mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.36.0" }
