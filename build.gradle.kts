@@ -6,7 +6,7 @@ import java.net.URI
 
 // provide general GAV coordinates
 group = "net.scrayos"
-version = "5.2.1-SNAPSHOT"
+version = "6.0.0-SNAPSHOT"
 description = "Agones Client SDK (Kotlin/Java)"
 
 // hook the plugins for the builds
@@ -57,7 +57,12 @@ kotlin {
     // set the toolchain version required to build this project
     // replaces sourceCompatibility and targetCompatibility as it also sets these implicitly
     // https://kotlinlang.org/docs/gradle-configure-project.html#gradle-java-toolchains-support
-    jvmToolchain(21)
+    jvmToolchain(25)
+}
+
+// enable dependency locking
+dependencyLocking {
+    lockAllConfigurations()
 }
 
 // configure the protobuf extension (protoc + grpc)
@@ -195,7 +200,7 @@ dokka {
         configureEach {
             moduleName.set("Agones Client SDK")
             includes.from("packages.md")
-            jdkVersion.set(21)
+            jdkVersion.set(25)
             samples.from("$projectDir/samples")
 
             sourceLink {
