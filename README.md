@@ -48,7 +48,7 @@ dependencies {
     api("net.scrayos", "agones-client-sdk", "6.0.0")
 
     // choose your own gRPC runtime or use an existing one
-    runtimeOnly("io.grpc", "grpc-netty", "1.81.0")
+    runtimeOnly("io.grpc", "grpc-netty", "1.84.3")
 }
 ```
 
