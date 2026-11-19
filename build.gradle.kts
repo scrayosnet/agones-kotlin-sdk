@@ -6,7 +6,7 @@ import java.net.URI
 
 // provide general GAV coordinates
 group = "net.scrayos"
-version = "6.1.1"
+version = "6.1.2-SNAPSHOT"
 description = "Agones Client SDK (Kotlin/Java)"
 
 // hook the plugins for the builds
