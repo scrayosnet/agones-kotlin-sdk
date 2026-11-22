@@ -12,6 +12,14 @@ log4j = "2.26.1"
 kotlinx-serialization = "1.13.0"
 testcontainers = "2.0.5"
 mockk = "1.14.12"
+# transitive dependencies that are only raised through constraints, to leave their vulnerable versions behind
+guava = "33.7.2-android"
+jackson = "2.22.3"
+freemarker = "2.3.35"
+logback = "1.5.34"
+bouncycastle = "1.85"
+lz4 = "1.11.4"
+snappy = "1.1.10.9"
 
 [libraries]
 protobuf-kotlin = { group = "com.google.protobuf", name = "protobuf-kotlin", version.ref = "protobuf" }
@@ -35,6 +43,15 @@ protoc-genKotlin = { group = "io.grpc", name = "protoc-gen-grpc-kotlin", version
 testcontainers-core = { group = "org.testcontainers", name = "testcontainers", version.ref = "testcontainers" }
 testcontainers-junit = { group = "org.testcontainers", name = "testcontainers-junit-jupiter", version.ref = "testcontainers" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+jackson-core = { group = "com.fasterxml.jackson.core", name = "jackson-core", version.ref = "jackson" }
+jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version.ref = "jackson" }
+freemarker = { group = "org.freemarker", name = "freemarker", version.ref = "freemarker" }
+logback-core = { group = "ch.qos.logback", name = "logback-core", version.ref = "logback" }
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
+bouncycastle = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncycastle" }
+lz4 = { group = "at.yawk.lz4", name = "lz4-java", version.ref = "lz4" }
+snappy = { group = "org.xerial.snappy", name = "snappy-java", version.ref = "snappy" }
 
 [bundles]
 kotest = ["kotest-runner", "kotest-testcontainers", "kotest-assertions-json"]

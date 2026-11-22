@@ -9,6 +9,17 @@ group = "net.scrayos"
 version = "6.1.2-SNAPSHOT"
 description = "Agones Client SDK (Kotlin/Java)"
 
+// raise vulnerable transitive dependencies of the plugins (dokka, kover) to their fixed versions
+buildscript {
+    dependencies {
+        constraints {
+            classpath(libs.jackson.core)
+            classpath(libs.jackson.databind)
+            classpath(libs.freemarker)
+        }
+    }
+}
+
 // hook the plugins for the builds
 plugins {
     alias(libs.plugins.javaLibrary)
@@ -50,6 +61,27 @@ dependencies {
     testImplementation(libs.kotlinx.serialization.json)
     testImplementation(libs.bundles.log4j)
     testRuntimeOnly(libs.grpc.netty)
+
+    // raise vulnerable transitive dependencies to their fixed versions
+    constraints {
+        // guava comes in through gRPC and is part of what consumers of the SDK resolve
+        implementation(libs.guava)
+        testImplementation(libs.lz4)
+        testImplementation(libs.snappy)
+    }
+}
+
+// raise vulnerable transitive dependencies of the build tooling, whose configurations the plugins create lazily
+val toolingConstraints =
+    mapOf(
+        "ktlint" to listOf(libs.logback.core, libs.logback.classic),
+        "kotlinBouncyCastleConfiguration" to listOf(libs.bouncycastle),
+        "dokkaHtmlGeneratorRuntime" to listOf(libs.jackson.core, libs.jackson.databind),
+    )
+configurations.matching { it.name in toolingConstraints }.configureEach {
+    toolingConstraints.getValue(name).forEach {
+        dependencyConstraints.add(project.dependencies.constraints.create(it.get()))
+    }
 }
 
 // configure the kotlin extension
