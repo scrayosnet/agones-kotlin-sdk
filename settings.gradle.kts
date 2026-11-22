@@ -1,8 +1,8 @@
 pluginManagement {
     repositories {
+        // maven central rate-limits the shared ips of renovate, so plugins come from google's mirror of it first
+        maven("https://maven-central.storage-download.googleapis.com/maven2/")
         gradlePluginPortal()
-        // some plugins (maven-publish by vanniktech) are only redirected from the portal to maven central, and
-        // renovate cannot follow that redirect when it refreshes the lockfile
         mavenCentral()
     }
 }

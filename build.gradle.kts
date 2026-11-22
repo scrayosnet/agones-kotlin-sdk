@@ -34,7 +34,9 @@ plugins {
 
 // configure the repositories for the dependencies
 repositories {
-    // official maven repository
+    // google's mirror of maven central, as maven central rate-limits the shared ips of renovate
+    maven("https://maven-central.storage-download.googleapis.com/maven2/")
+    // official maven repository, for anything the mirror does not have yet
     mavenCentral()
 }
 
