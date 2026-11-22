@@ -4,8 +4,8 @@
 # To regenerate this file, run: ./gradlew :dependencies --write-locks
 at.yawk.lz4:lz4-java:1.11.4=testCompileProtoPath,testRuntimeClasspath
 biz.aQute.bnd:biz.aQute.bnd.annotation:7.1.0=testCompileClasspath
-ch.qos.logback:logback-classic:1.5.34=ktlint
-ch.qos.logback:logback-core:1.5.34=ktlint
+ch.qos.logback:logback-classic:1.6.7=ktlint
+ch.qos.logback:logback-core:1.6.7=ktlint
 com.fasterxml.jackson.core:jackson-annotations:2.20=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.22=dokkaHtmlGeneratorRuntimeResolver~internal
 com.fasterxml.jackson.core:jackson-core:2.22.3=dokkaHtmlGeneratorRuntimeResolver~internal
@@ -234,7 +234,8 @@ org.osgi:org.osgi.resource:1.0.0=testCompileClasspath
 org.osgi:org.osgi.service.serviceloader:1.0.0=testCompileClasspath
 org.ow2.asm:asm:9.7.1=testCompileProtoPath,testRuntimeClasspath
 org.rnorth.duct-tape:duct-tape:1.0.8=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
-org.slf4j:slf4j-api:2.0.17=ktlint,testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
+org.slf4j:slf4j-api:2.0.17=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
+org.slf4j:slf4j-api:2.0.19=ktlint
 org.slf4j:slf4j-api:2.0.20=compileClasspath,compileProtoPath
 org.testcontainers:testcontainers-database-commons:2.0.4=testCompileProtoPath,testRuntimeClasspath
 org.testcontainers:testcontainers-jdbc:2.0.4=testCompileProtoPath,testRuntimeClasspath
