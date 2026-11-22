@@ -19,7 +19,7 @@ freemarker = "2.3.35"
 logback = "1.6.7"
 bouncycastle = "1.85"
 lz4 = "1.11.4"
-snappy = "1.1.10.9"
+snappy = "1.1.10.12"
 
 [libraries]
 protobuf-kotlin = { group = "com.google.protobuf", name = "protobuf-kotlin", version.ref = "protobuf" }
