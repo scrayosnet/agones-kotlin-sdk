@@ -1,3 +1,12 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        // some plugins (maven-publish by vanniktech) are only redirected from the portal to maven central, and
+        // renovate cannot follow that redirect when it refreshes the lockfile
+        mavenCentral()
+    }
+}
+
 rootProject.name = "agones-client-sdk"
 
 buildCache {
