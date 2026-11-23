@@ -2,7 +2,7 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 # To regenerate this file, run: ./gradlew :dependencies --write-locks
-at.yawk.lz4:lz4-java:1.11.4=testCompileProtoPath,testRuntimeClasspath
+at.yawk.lz4:lz4-java:1.14.1=testCompileProtoPath,testRuntimeClasspath
 biz.aQute.bnd:biz.aQute.bnd.annotation:7.1.0=testCompileClasspath
 ch.qos.logback:logback-classic:1.6.7=ktlint
 ch.qos.logback:logback-core:1.6.7=ktlint

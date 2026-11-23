@@ -18,7 +18,7 @@ jackson = "2.22.3"
 freemarker = "2.3.35"
 logback = "1.6.7"
 bouncycastle = "1.85"
-lz4 = "1.11.4"
+lz4 = "1.14.1"
 snappy = "1.1.10.12"
 
 [libraries]
