@@ -4,8 +4,8 @@
 # To regenerate this file, run: ./gradlew :dependencies --write-locks
 at.yawk.lz4:lz4-java:1.14.1=testCompileProtoPath,testRuntimeClasspath
 biz.aQute.bnd:biz.aQute.bnd.annotation:7.1.0=testCompileClasspath
-ch.qos.logback:logback-classic:1.6.7=ktlint
-ch.qos.logback:logback-core:1.6.7=ktlint
+ch.qos.logback:logback-classic:1.6.8=ktlint
+ch.qos.logback:logback-core:1.6.8=ktlint
 com.fasterxml.jackson.core:jackson-annotations:2.20=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 com.fasterxml.jackson.core:jackson-annotations:2.22=dokkaHtmlGeneratorRuntimeResolver~internal
 com.fasterxml.jackson.core:jackson-core:2.22.3=dokkaHtmlGeneratorRuntimeResolver~internal
