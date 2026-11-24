@@ -14,7 +14,7 @@ testcontainers = "2.0.5"
 mockk = "1.14.12"
 # transitive dependencies that are only raised through constraints, to leave their vulnerable versions behind
 guava = "33.7.2-android"
-jackson = "2.22.3"
+jackson = "2.23.0"
 freemarker = "2.3.35"
 logback = "1.6.8"
 bouncycastle = "1.87"
